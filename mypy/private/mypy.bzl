@@ -45,12 +45,14 @@ def _mypy_impl(ctx):
     ], before_each = "--upstream-cache")
     args.add_all(ctx.files.srcs)
 
+    config_files = [ctx.file.mypy_ini] if ctx.file.mypy_ini else []
+
     ctx.actions.run(
         mnemonic = "mypy",
         inputs = depset(direct = ctx.files.srcs +
                                  ctx.files.deps +
                                  ctx.files.caches +
-                                 [ctx.file.mypy_ini]),
+                                 config_files),
         outputs = [cache_directory],
         executable = ctx.executable.mypy_cli,
         arguments = [args],
