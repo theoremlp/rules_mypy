@@ -47,7 +47,10 @@ def _mypy_impl(ctx):
 
     ctx.actions.run(
         mnemonic = "mypy",
-        inputs = depset(direct = ctx.files.srcs + ctx.files.deps + ctx.files.caches),
+        inputs = depset(direct = ctx.files.srcs +
+                                 ctx.files.deps +
+                                 ctx.files.caches +
+                                 ctx.file.mypy_ini),
         outputs = [cache_directory],
         executable = ctx.executable.mypy_cli,
         arguments = [args],
