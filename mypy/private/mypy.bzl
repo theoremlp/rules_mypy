@@ -50,7 +50,7 @@ def _mypy_impl(ctx):
         inputs = depset(direct = ctx.files.srcs +
                                  ctx.files.deps +
                                  ctx.files.caches +
-                                 ctx.file.mypy_ini),
+                                 [ctx.file.mypy_ini]),
         outputs = [cache_directory],
         executable = ctx.executable.mypy_cli,
         arguments = [args],
