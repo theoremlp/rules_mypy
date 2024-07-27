@@ -5,6 +5,10 @@ load("@rules_uv//uv:pip.bzl", "pip_compile")
 load("@rules_uv//uv:venv.bzl", "create_venv")
 load(":mypy.bzl", "mypy_cli", _mypy = "mypy")
 
+exports_files([
+    "mypy.py",
+])
+
 bzl_library(
     name = "mypy_rules",
     srcs = ["mypy.bzl"],

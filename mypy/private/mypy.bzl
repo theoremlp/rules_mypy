@@ -125,8 +125,8 @@ def mypy_cli(name, deps = None, mypy_requirement = None):
 
     py_binary(
         name = name,
-        srcs = ["//mypy/private:mypy.py"],
-        main = "//mypy/private:mypy.py",
+        srcs = ["@rules_mypy//mypy/private:mypy.py"],
+        main = "@rules_mypy//mypy/private:mypy.py",
         visibility = ["//visibility:public"],
         deps = [
             mypy_requirement,
