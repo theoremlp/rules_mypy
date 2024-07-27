@@ -44,24 +44,25 @@ def main(
     cache_dir = cache_dir or ".mypy_cache"
     _merge_upstream_caches(cache_dir, list(upstream_caches))
 
-    maybe_config = ["--config-file", mypy_ini] if mypy_ini else []
-
-    report, errors, status = mypy.api.run(
-        maybe_config
-        + [
-            # use a known cache-dir
-            f"--cache-dir={cache_dir}",
-            # use current dir + MYPYPATH to resolve deps
-            "--explicit-package-bases",
-            # do not type-check dependencies, only use deps for type-checking srcs
-            "--follow-imports=silent",
-        ]
-        + list(srcs)
-    )
-
-    if status:
-        sys.stderr.write(errors)
-        sys.stderr.write(report)
+    if len(srcs) > 0:
+        maybe_config = ["--config-file", mypy_ini] if mypy_ini else []
+        report, errors, status = mypy.api.run(
+            maybe_config
+            + [
+                # use a known cache-dir
+                f"--cache-dir={cache_dir}",
+                # use current dir + MYPYPATH to resolve deps
+                "--explicit-package-bases",
+                # do not type-check dependencies, only use deps for type-checking srcs
+                "--follow-imports=silent",
+            ]
+            + list(srcs)
+        )
+        if status:
+            sys.stderr.write(errors)
+            sys.stderr.write(report)
+    else:
+        status = 0
 
     sys.exit(status)
 
