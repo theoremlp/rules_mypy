@@ -61,6 +61,8 @@ def decorate(py_target, mypy_ini = None, mypy_cli = None, types = None):  # buil
             mypy_ini = mypy_ini,
             mypy_cli = mypy_cli,
             visibility = kwargs.get("visibility"),
+            testonly = kwargs.get("testonly"),
+            tags = kwargs.get("tags"),
         )
 
     return decorated_py_target

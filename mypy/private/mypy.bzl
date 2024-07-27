@@ -84,7 +84,15 @@ _mypy = rule(
     },
 )
 
-def mypy(name, srcs = None, deps = None, mypy_ini = None, mypy_cli = None, visibility = None):
+def mypy(
+        name,
+        srcs = None,
+        deps = None,
+        mypy_ini = None,
+        mypy_cli = None,
+        visibility = None,
+        testonly = None,
+        tags = None):
     """
     Create a mypy target inferring upstream caches from deps.
 
@@ -97,6 +105,8 @@ def mypy(name, srcs = None, deps = None, mypy_ini = None, mypy_cli = None, visib
                     with mypy_cli macro)
         visibility: (optional) visibility of this target (recommended to set to same
                     as the py_* target it inherits)
+        testonly:   (optional) if this is a testonly target
+        tags:       (optional) a list of tags to apply
     """
 
     upstream_caches = []
@@ -113,6 +123,8 @@ def mypy(name, srcs = None, deps = None, mypy_ini = None, mypy_cli = None, visib
         mypy_ini = mypy_ini,
         mypy_cli = mypy_cli,
         visibility = visibility,
+        testonly = testonly,
+        tags = tags,
     )
 
 def mypy_cli(name, deps = None, mypy_requirement = None):
