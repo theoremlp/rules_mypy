@@ -24,7 +24,11 @@ def _mypy_impl(ctx):
 
     types = []
 
+    depsets = []
+
     for dep in ctx.attr.deps:
+        depsets.append(dep.default_runfiles.files)
+
         if PyTypeLibraryInfo in dep:
             types.append(dep[PyTypeLibraryInfo].directory + "/site-packages")
         elif dep.label.workspace_root.startswith("external/"):
@@ -49,10 +53,10 @@ def _mypy_impl(ctx):
 
     ctx.actions.run(
         mnemonic = "mypy",
-        inputs = depset(direct = ctx.files.srcs +
-                                 ctx.files.deps +
-                                 ctx.files.caches +
-                                 config_files),
+        inputs = depset(
+            direct = ctx.files.srcs + ctx.files.caches + config_files,
+            transitive = depsets,
+        ),
         outputs = [cache_directory],
         executable = ctx.executable.mypy_cli,
         arguments = [args],
