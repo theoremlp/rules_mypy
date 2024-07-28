@@ -113,6 +113,10 @@ def mypy(
         tags:       (optional) a list of tags to apply
     """
 
+    # enable opt-out
+    if "no-mypy" in tags:
+        return
+
     upstream_caches = []
     if deps:
         for dep in deps:
