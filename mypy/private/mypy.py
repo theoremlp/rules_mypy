@@ -1,7 +1,9 @@
 import pathlib
 import shutil
 import sys
+
 import click
+
 import mypy.api
 
 
