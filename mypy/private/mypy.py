@@ -51,12 +51,20 @@ def main(
         report, errors, status = mypy.api.run(
             maybe_config
             + [
+                # use relative file paths, set mtime to 0 (https://github.com/python/mypy/pull/4759)
+                "--bazel",
+                # do not check mtime in cache, it'll always be 0 due to `--bazel`
+                "--skip-cache-mtime-checks",
+                # mypy defaults to incremental, but force it on anyway
+                "--incremental",
                 # use a known cache-dir
                 f"--cache-dir={cache_dir}",
                 # use current dir + MYPYPATH to resolve deps
                 "--explicit-package-bases",
                 # do not type-check dependencies, only use deps for type-checking srcs
                 "--follow-imports=silent",
+                # speedup
+                "--fast-module-lookup",
             ]
             + list(srcs)
         )
