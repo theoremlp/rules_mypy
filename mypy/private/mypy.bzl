@@ -41,6 +41,9 @@ def _mypy_impl(ctx):
             if file.root.path:
                 generated_dirs[file.root.path] = 1
 
+    # TODO: can we use `ctx.bin_dir.path` here to cover generated files
+    # and as a way to skip iterating over depset contents to find generated
+    # file roots?
     unique_generated_dirs = generated_dirs.keys()
 
     # types need to appear first in the mypy path since the module directories
