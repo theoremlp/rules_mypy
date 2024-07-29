@@ -22,6 +22,9 @@ def _mypy_impl(ctx):
     # MYPYPATH to include the site-packages directories.
     external_deps = []
 
+    # generated dirs
+    generated_dirs = {}
+
     types = []
 
     depsets = []
@@ -34,9 +37,15 @@ def _mypy_impl(ctx):
         elif dep.label.workspace_root.startswith("external/"):
             external_deps.append(dep.label.workspace_root + "/site-packages")
 
+        for file in dep.default_runfiles.files.to_list():
+            if file.root.path:
+                generated_dirs[file.root.path] = 1
+
+    unique_generated_dirs = generated_dirs.keys()
+
     # types need to appear first in the mypy path since the module directories
     # are the same and mypy resolves the first ones, first.
-    mypy_path = ":".join(types + external_deps)
+    mypy_path = ":".join(types + external_deps + unique_generated_dirs)
 
     cache_directory = ctx.actions.declare_directory(ctx.attr.name + ".mypy_cache")
 
@@ -114,7 +123,7 @@ def mypy(
     """
 
     # enable opt-out
-    if "no-mypy" in tags:
+    if tags and "no-mypy" in tags:
         return
 
     upstream_caches = []
