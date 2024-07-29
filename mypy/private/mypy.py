@@ -25,11 +25,10 @@ def _merge_upstream_caches(cache_dir: str, upstream_caches: list[str]) -> None:
                 if not target_path.exists():
                     shutil.copy(upstream_path, target_path)
 
-    # open up permissions to read/write for the missing_stubs file because mypy may
-    # try to mutate it in place.
+    # missing_stubs is mutable, so remove it
     missing_stubs = current / "missing_stubs"
     if missing_stubs.exists():
-        missing_stubs.chmod(666)
+        missing_stubs.unlink()
 
 
 @click.command()
