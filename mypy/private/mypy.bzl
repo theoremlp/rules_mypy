@@ -144,7 +144,7 @@ def mypy(
         tags = tags,
     )
 
-def mypy_cli(name, deps = None, mypy_requirement = None):
+def mypy_cli(name, deps = None, mypy_requirement = None, tags = None):
     """
     Produce a custom mypy executable for use with the mypy build rule.
 
@@ -152,6 +152,7 @@ def mypy_cli(name, deps = None, mypy_requirement = None):
         name: name of the binary target this macro produces
         deps: (optional) additional dependencies to include (e.g. mypy plugins)
         mypy_requirement: (optional) a replacement mypy requirement
+        tags: (optional) tags to include in the binary target
     """
 
     deps = deps or []
@@ -166,4 +167,5 @@ def mypy_cli(name, deps = None, mypy_requirement = None):
             mypy_requirement,
             requirement("click"),
         ] + deps,
+        tags = tags,
     )
