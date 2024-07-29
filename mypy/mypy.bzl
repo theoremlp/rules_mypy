@@ -18,7 +18,7 @@ def _expand(deps, types):
         if dep in types
     ]
 
-def decorate(py_target, mypy_ini = None, mypy_cli = None, types = None):  # buildifier: disable=unnamed-macro
+def decorate(py_target, mypy_ini = None, mypy_cli = None, types = None, filter = None):  # buildifier: disable=unnamed-macro
     """
     Decorate a py_binary, py_library or py_test rule/macro by adding an additional mypy target.
 
@@ -42,6 +42,8 @@ def decorate(py_target, mypy_ini = None, mypy_cli = None, types = None):  # buil
                     ```
                     Use the types extension to create this map for a requirements.in
                     or requirements.txt file.
+        filter:    (optional) a filter function that accepts a label and returns
+                    True if the label should not be used to find upstream caches.
 
     Returns: a decorated py_target.
     """
@@ -63,6 +65,7 @@ def decorate(py_target, mypy_ini = None, mypy_cli = None, types = None):  # buil
             visibility = kwargs.get("visibility"),
             testonly = kwargs.get("testonly"),
             tags = kwargs.get("tags"),
+            filter = filter,
         )
 
     return decorated_py_target

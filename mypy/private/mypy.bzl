@@ -97,6 +97,9 @@ _mypy = rule(
     },
 )
 
+def _no_op_filter(_label):
+    return False
+
 def mypy(
         name,
         srcs = None,
@@ -105,7 +108,8 @@ def mypy(
         mypy_cli = None,
         visibility = None,
         testonly = None,
-        tags = None):
+        tags = None,
+        filter = None):
     """
     Create a mypy target inferring upstream caches from deps.
 
@@ -120,23 +124,28 @@ def mypy(
                     as the py_* target it inherits)
         testonly:   (optional) if this is a testonly target
         tags:       (optional) a list of tags to apply
+        filter:     (optional) a function that accepts a label and returns true
+                     if the label should not be included in upstream cache usage.
     """
 
     # enable opt-out
     if tags and "no-mypy" in tags:
         return
 
+    filter = filter or _no_op_filter
+
     upstream_caches = []
     if deps:
         for dep in deps:
             lab = native.package_relative_label(dep)
-            if lab.workspace_root == "":
+            if lab.workspace_root == "" and not filter(lab):
                 upstream_caches.append(str(lab) + ".mypy")
 
     _mypy(
         name = name,
         srcs = srcs,
         deps = deps,
+        caches = upstream_caches,
         mypy_ini = mypy_ini,
         mypy_cli = mypy_cli,
         visibility = visibility,
