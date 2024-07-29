@@ -25,6 +25,12 @@ def _merge_upstream_caches(cache_dir: str, upstream_caches: list[str]) -> None:
                 if not target_path.exists():
                     shutil.copy(upstream_path, target_path)
 
+    # open up permissions to read/write for the missing_stubs file because mypy may
+    # try to mutate it in place.
+    missing_stubs = current / "missing_stubs"
+    if missing_stubs.exists():
+        missing_stubs.chmod(666)
+
 
 @click.command()
 @click.option("--cache-dir", required=False, type=click.Path())
@@ -51,9 +57,7 @@ def main(
         report, errors, status = mypy.api.run(
             maybe_config
             + [
-                # use relative file paths, set mtime to 0 (https://github.com/python/mypy/pull/4759)
-                "--bazel",
-                # do not check mtime in cache, it'll always be 0 due to `--bazel`
+                # do not check mtime in cache
                 "--skip-cache-mtime-checks",
                 # mypy defaults to incremental, but force it on anyway
                 "--incremental",
