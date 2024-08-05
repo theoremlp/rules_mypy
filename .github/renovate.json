@@ -18,7 +18,7 @@
     "ignorePaths": [
       "examples/demo/requirements.in",
       "examples/demo/requirements.txt",
-      "mypy/private/requirements.txt",
+      "mypy/private/requirements.txt"
     ],
     "rangeStrategy": "bump"
   }
