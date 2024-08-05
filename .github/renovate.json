@@ -15,7 +15,11 @@
   ],
   "pip_requirements": {
     "fileMatch": ["mypy/private/requirements.in"],
-    "ignorePaths": ["mypy/private/requirements.txt"],
+    "ignorePaths": [
+      "examples/demo/requirements.in",
+      "examples/demo/requirements.txt",
+      "mypy/private/requirements.txt",
+    ],
     "rangeStrategy": "bump"
   }
 }
