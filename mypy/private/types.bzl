@@ -17,6 +17,7 @@ def _render_build(rctx, types):
     for requirement in types:
         content += _PY_TYPE_LIBRARY_TEMPLATE.format(
             requirement = requirement,
+            raw = requirement.removeprefix("types-").removesuffix("-stubs"),
         ) + "\n"
     return content
 

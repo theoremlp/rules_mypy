@@ -1,23 +1,36 @@
 """
-mypy build rule.
+mypy aspect.
 
-The mypy build rule runs mypy, succeeding if mypy is error free and failing if mypy produces errors. The
-result of the build is a mypy cache directory, located at [name].mypy_cache. When provided input cache
-directories (the results of other mypy builds), the build rule first attempts to merge the cache directories.
+The mypy aspect runs mypy, succeeding if mypy is error free and failing if mypy produces errors. The
+result of the aspect is a mypy cache directory, located at [name].mypy_cache. When provided input cache
+directories (the results of other mypy builds), the underlying action first attempts to merge the cache
+directories.
 """
 
 load("@rules_mypy_pip//:requirements.bzl", "requirement")
 load("@rules_python//python:py_binary.bzl", "py_binary")
-load("//mypy/private:py_type_library.bzl", "PyTypeLibraryInfo")
+load(":py_type_library.bzl", "PyTypeLibraryInfo")
 
 MypyCacheInfo = provider(
     doc = "Output details of the mypy build rule.",
     fields = {
-        "cache_directory": "Location of the mypy cache produced by this target.",
+        "directory": "Location of the mypy cache produced by this target.",
     },
 )
 
-def _mypy_impl(ctx):
+def _mypy_impl(target, ctx):
+    # skip non-root targets
+    if target.label.workspace_root != "":
+        return []
+
+    # only instrument py_* targets
+    if ctx.rule.kind not in ["py_binary", "py_library", "py_test"]:
+        return []
+
+    # disable if a target is tagged "no-mypy"
+    if "no-mypy" in ctx.rule.attr.tags:
+        return []
+
     # we need to help mypy map the location of external deps by setting
     # MYPYPATH to include the site-packages directories.
     external_deps = []
@@ -25,52 +38,64 @@ def _mypy_impl(ctx):
     # generated dirs
     generated_dirs = {}
 
+    upstream_caches = []
+
     types = []
 
     depsets = []
 
-    for dep in ctx.attr.deps:
+    type_mapping = dict(zip([k.label for k in ctx.attr._types_keys], ctx.attr._types_values))
+    additional_types = [
+        type_mapping[dep.label]
+        for dep in ctx.rule.attr.deps
+        if dep.label in type_mapping
+    ]
+
+    for dep in (ctx.rule.attr.deps + additional_types):
         depsets.append(dep.default_runfiles.files)
 
         if PyTypeLibraryInfo in dep:
-            types.append(dep[PyTypeLibraryInfo].directory + "/site-packages")
+            types.append(dep[PyTypeLibraryInfo].directory.path + "/site-packages")
         elif dep.label.workspace_root.startswith("external/"):
             external_deps.append(dep.label.workspace_root + "/site-packages")
+
+        if MypyCacheInfo in dep:
+            upstream_caches.append(dep[MypyCacheInfo].directory)
 
         for file in dep.default_runfiles.files.to_list():
             if file.root.path:
                 generated_dirs[file.root.path] = 1
 
-    # TODO: can we use `ctx.bin_dir.path` here to cover generated files
-    # and as a way to skip iterating over depset contents to find generated
-    # file roots?
+        # TODO: can we use `ctx.bin_dir.path` here to cover generated files
+        # and as a way to skip iterating over depset contents to find generated
+        # file roots?
+
     unique_generated_dirs = generated_dirs.keys()
 
     # types need to appear first in the mypy path since the module directories
     # are the same and mypy resolves the first ones, first.
     mypy_path = ":".join(types + external_deps + unique_generated_dirs)
 
-    cache_directory = ctx.actions.declare_directory(ctx.attr.name + ".mypy_cache")
+    cache_directory = ctx.actions.declare_directory(ctx.rule.attr.name + ".mypy_cache")
 
     args = ctx.actions.args()
     args.add("--cache-dir", cache_directory.path)
+    args.add_all([c.path for c in upstream_caches], before_each = "--upstream-cache")
+    args.add_all(ctx.rule.files.srcs)
 
-    args.add_all([
-        cache[MypyCacheInfo].cache_directory.path
-        for cache in ctx.attr.caches
-    ], before_each = "--upstream-cache")
-    args.add_all(ctx.files.srcs)
-
-    config_files = [ctx.file.mypy_ini] if ctx.file.mypy_ini else []
+    if hasattr(ctx.attr, "_mypy_ini"):
+        config_files = [ctx.file._mypy_ini]
+    else:
+        config_files = []
 
     ctx.actions.run(
         mnemonic = "mypy",
         inputs = depset(
-            direct = ctx.files.srcs + ctx.files.caches + config_files,
+            direct = ctx.rule.files.srcs + upstream_caches + config_files,
             transitive = depsets,
         ),
         outputs = [cache_directory],
-        executable = ctx.executable.mypy_cli,
+        executable = ctx.executable._mypy_cli,
         arguments = [args],
         env = {
             "MYPYPATH": mypy_path,
@@ -82,78 +107,56 @@ def _mypy_impl(ctx):
     )
 
     return [
-        DefaultInfo(
-            files = depset([cache_directory]),
-            runfiles = ctx.runfiles(files = [cache_directory]),
-        ),
-        MypyCacheInfo(cache_directory = cache_directory),
+        MypyCacheInfo(directory = cache_directory),
+        OutputGroupInfo(mypy = depset([cache_directory])),
     ]
 
-_mypy = rule(
-    implementation = _mypy_impl,
-    attrs = {
-        "srcs": attr.label_list(allow_files = True),
-        "deps": attr.label_list(),
-        "mypy_ini": attr.label(allow_single_file = True),
-        "mypy_cli": attr.label(cfg = "exec", default = "//mypy/private:mypy", executable = True),
-        "caches": attr.label_list(),
-    },
-)
-
-def _no_op_filter(_label):
-    return False
-
-def mypy(
-        name,
-        srcs = None,
-        deps = None,
-        mypy_ini = None,
-        mypy_cli = None,
-        visibility = None,
-        testonly = None,
-        tags = None,
-        filter = None):
+def mypy(mypy_cli = None, mypy_ini = None, types = None):
     """
     Create a mypy target inferring upstream caches from deps.
 
     Args:
-        name:       name of the target to produce
-        srcs:       (optional) srcs to type-check
-        deps:       (optional) deps used as input to type-checking
-        mypy_ini:   (optional) mypy_ini file to use
         mypy_cli:   (optional) a replacement mypy_cli to use (recommended to produce
                     with mypy_cli macro)
-        visibility: (optional) visibility of this target (recommended to set to same
-                    as the py_* target it inherits)
-        testonly:   (optional) if this is a testonly target
-        tags:       (optional) a list of tags to apply
-        filter:     (optional) a function that accepts a label and returns true
-                     if the label should not be included in upstream cache usage.
+        mypy_ini:   (optional) mypy_ini file to use
+        types:      (optional) a dict of dependency label to types dependency label
+                    example:
+                    ```
+                    {
+                        requirement("cachetools"): requirement("types-cachetools"),
+                    }
+                    ```
+                    Use the types extension to create this map for a requirements.in
+                    or requirements.txt file.
+
+    Returns:
+        a mypy aspect.
     """
+    types = types or {}
 
-    # enable opt-out
-    if tags and "no-mypy" in tags:
-        return
+    additional_attrs = {}
 
-    filter = filter or _no_op_filter
-
-    upstream_caches = []
-    if deps:
-        for dep in deps:
-            lab = native.package_relative_label(dep)
-            if lab.workspace_root == "" and not filter(lab):
-                upstream_caches.append(str(lab) + ".mypy")
-
-    _mypy(
-        name = name,
-        srcs = srcs,
-        deps = deps,
-        caches = upstream_caches,
-        mypy_ini = mypy_ini,
-        mypy_cli = mypy_cli,
-        visibility = visibility,
-        testonly = testonly,
-        tags = tags,
+    return aspect(
+        implementation = _mypy_impl,
+        attr_aspects = ["deps"],
+        attrs = {
+            "_mypy_cli": attr.label(
+                default = mypy_cli or "@rules_mypy//mypy/private:mypy",
+                cfg = "exec",
+                executable = True,
+            ),
+            "_mypy_ini": attr.label(
+                # we provide a default here because Bazel won't allow Label attrs
+                # that are public, or private attrs that have default values of None
+                default = mypy_ini or "@rules_mypy//mypy/private:default_mypy.ini",
+                allow_single_file = True,
+                mandatory = False,
+            ),
+            # pass the dict[Label, Label] in parts because Bazel doesn't have
+            # this kind of attr to pass naturally
+            "_types_keys": attr.label_list(default = types.keys()),
+            "_types_values": attr.label_list(default = types.values()),
+        } | additional_attrs,
     )
 
 def mypy_cli(name, deps = None, mypy_requirement = None, tags = None):

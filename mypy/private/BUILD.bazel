@@ -3,10 +3,11 @@ load("@rules_mypy_pip//:requirements.bzl", "requirement")
 load("@rules_python//python:py_binary.bzl", "py_binary")
 load("@rules_uv//uv:pip.bzl", "pip_compile")
 load("@rules_uv//uv:venv.bzl", "create_venv")
-load(":mypy.bzl", "mypy_cli", _mypy = "mypy")
+load(":mypy.bzl", "mypy_cli")
 
 exports_files([
     "mypy.py",
+    "default_mypy.ini",
 ])
 
 bzl_library(
@@ -40,28 +41,11 @@ create_venv(
 
 mypy_cli(name = "mypy")
 
-_mypy(
-    name = "mypy.mypy",
-    srcs = ["mypy.py"],
-    deps = [
-        requirement("click"),
-        requirement("mypy"),
-    ],
-)
-
 py_binary(
     name = "py_type_library",
     srcs = ["py_type_library.py"],
     main = "py_type_library.py",
     visibility = ["//visibility:public"],
-    deps = [
-        requirement("click"),
-    ],
-)
-
-_mypy(
-    name = "py_type_library.mypy",
-    srcs = ["py_type_library.py"],
     deps = [
         requirement("click"),
     ],

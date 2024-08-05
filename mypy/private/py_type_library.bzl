@@ -29,7 +29,7 @@ def _py_type_library_impl(ctx):
             runfiles = ctx.runfiles(files = [directory]),
         ),
         PyTypeLibraryInfo(
-            directory = directory.path,
+            directory = directory,
         ),
     ]
 
