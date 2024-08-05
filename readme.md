@@ -52,6 +52,16 @@ load("@rules_mypy//mypy:mypy.bzl", "mypy")
 mypy_aspect = mypy(types = types)
 ```
 
+Update your `.bazelrc` to include this new aspect:
+
+```starlark
+# register mypy_aspect with Bazel
+build --aspects //tools:aspects.bzl%mypy_aspect
+
+# optionally, default enable the mypy checks
+build --output_groups=+mypy
+```
+
 ## Customizing mypy
 
 mypy's behavior may be customized using a [mypy config file](https://mypy.readthedocs.io/en/stable/config_file.html) file. To use a mypy config file, pass a label for a valid config file to the `mypy` aspect factory:
@@ -66,6 +76,7 @@ mypy_aspect = mypy(
 To customize the version of mypy, use rules_python's requirements resolution and construct a custom mypy CLI:
 
 ```starlark
+# in a BUILD file
 load("@pip//:requirements.bzl", "requirements") # '@pip' must match configured pip hub_name
 load("@rules_mypy//mypy:mypy.bzl", "mypy", "mypy_cli")
 
@@ -73,6 +84,12 @@ mypy_cli(
     name = "mypy_cli",
     mypy_requirement = requirement("mypy"),
 )
+```
+
+And in your `aspects.bzl` (or similar) file:
+
+```starlark
+load("@rules_mypy//mypy:mypy.bzl", "mypy")
 
 mypy_aspect = mypy(
     mypy_cli = ":mypy_cli",
@@ -83,6 +100,7 @@ mypy_aspect = mypy(
 Further, to use mypy plugins referenced in any config file, use the `deps` attribute of `mypy_cli`:
 
 ```starlark
+# in a BUILD file
 load("@pip//:requirements.bzl", "requirements") # '@pip' must match configured pip hub_name
 load("@rules_mypy//mypy:mypy.bzl", "mypy", "mypy_cli")
 
@@ -92,10 +110,5 @@ mypy_cli(
     deps = [
         requirement("pydantic"),
     ],
-)
-
-mypy_aspect = mypy(
-    mypy_cli = ":mypy_cli",
-    types = types,
 )
 ```
