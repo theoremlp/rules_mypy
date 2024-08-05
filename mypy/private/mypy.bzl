@@ -7,8 +7,8 @@ directories (the results of other mypy builds), the underlying action first atte
 directories.
 """
 
+load("@python_versions//3.12:defs.bzl", "py_binary")
 load("@rules_mypy_pip//:requirements.bzl", "requirement")
-load("@rules_python//python:py_binary.bzl", "py_binary")
 load(":py_type_library.bzl", "PyTypeLibraryInfo")
 
 MypyCacheInfo = provider(
