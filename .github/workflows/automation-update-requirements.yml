@@ -2,7 +2,7 @@ name: Update requirements lockfiles
 on:
   pull_request:
     paths:
-      - "requirements.in"
+      - "mypy/private/requirements.in"
 jobs:
   update-requirements:
     name: Update requirements lockfiles
