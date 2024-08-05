@@ -7,7 +7,7 @@
       "onlyModifiedByUsers": ["thm-automation[bot]", "renovate-thm[bot]"],
       "onlyModifiedFileRegExs": [
         "^.github/workflows/.*",
-        "^uv/private/uv.lock.json$"
+        "^mypy/private/requirements.(in|txt)$"
       ]
     }
   ]
