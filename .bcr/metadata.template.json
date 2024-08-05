@@ -12,7 +12,7 @@
       "name": "Theorem Bazel Maintainers"
     }
   ],
-  "repository": ["github:theoremlp/rules_myp"],
+  "repository": ["github:theoremlp/rules_mypy"],
   "versions": [],
   "yanked_versions": {}
 }
