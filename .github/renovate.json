@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [":semanticCommitsDisabled"],
-  "enabledManagers": ["github-actions"],
+  "enabledManagers": ["github-actions", "pip_requirements"],
   "timezone": "America/New_York",
   "schedule": ["every weekday after 9am before 5pm"],
   "branchConcurrentLimit": 10,
@@ -12,5 +12,10 @@
       "matchFiles": ["MODULE.bazel"],
       "enabled": false
     }
-  ]
+  ],
+  "pip_requirements": {
+    "fileMatch": ["mypy/private/requirements.in"],
+    "ignorePaths": ["mypy/private/requirements.txt"],
+    "rangeStrategy": "bump"
+  }
 }
