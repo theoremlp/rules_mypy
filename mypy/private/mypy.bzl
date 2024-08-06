@@ -84,6 +84,7 @@ def _mypy_impl(target, ctx):
     args.add_all(ctx.rule.files.srcs)
 
     if hasattr(ctx.attr, "_mypy_ini"):
+        args.add("--mypy-ini", ctx.file._mypy_ini.path)
         config_files = [ctx.file._mypy_ini]
     else:
         config_files = []
