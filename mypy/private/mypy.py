@@ -32,6 +32,7 @@ def _merge_upstream_caches(cache_dir: str, upstream_caches: list[str]) -> None:
 
 
 @click.command()
+@click.option("--output", required=False, type=click.Path())
 @click.option("--cache-dir", required=False, type=click.Path())
 @click.option(
     "--upstream-cache",
@@ -43,6 +44,7 @@ def _merge_upstream_caches(cache_dir: str, upstream_caches: list[str]) -> None:
 @click.option("--mypy-ini", required=False, type=click.Path(exists=True))
 @click.argument("srcs", nargs=-1, type=click.Path(exists=True))
 def main(
+    output: str | None,
     cache_dir: str | None,
     upstream_caches: tuple[str, ...],
     mypy_ini: str | None,
@@ -76,6 +78,11 @@ def main(
             sys.stderr.write(report)
     else:
         status = 0
+
+    if output:
+        with open(output, "w+") as file:
+            file.write(errors)
+            file.write(report)
 
     sys.exit(status)
 

@@ -77,8 +77,10 @@ def _mypy_impl(target, ctx):
     mypy_path = ":".join(types + external_deps + unique_generated_dirs)
 
     cache_directory = ctx.actions.declare_directory(ctx.rule.attr.name + ".mypy_cache")
+    output_file = ctx.actions.declare_file(ctx.rule.attr.name + ".mypy_stdout")
 
     args = ctx.actions.args()
+    args.add("--output", output_file)
     args.add("--cache-dir", cache_directory.path)
     args.add_all([c.path for c in upstream_caches], before_each = "--upstream-cache")
     args.add_all(ctx.rule.files.srcs)
@@ -91,11 +93,12 @@ def _mypy_impl(target, ctx):
 
     ctx.actions.run(
         mnemonic = "mypy",
+        progress_message = "mypy %{label}",
         inputs = depset(
             direct = ctx.rule.files.srcs + upstream_caches + config_files,
             transitive = depsets,
         ),
-        outputs = [cache_directory],
+        outputs = [output_file, cache_directory],
         executable = ctx.executable._mypy_cli,
         arguments = [args],
         env = {
@@ -107,12 +110,17 @@ def _mypy_impl(target, ctx):
         } | ctx.configuration.default_shell_env,
     )
 
-    return [
-        MypyCacheInfo(directory = cache_directory),
-        OutputGroupInfo(mypy = depset([cache_directory])),
-    ]
+    if ctx.attr.cache:
+        return [
+            MypyCacheInfo(directory = cache_directory),
+            OutputGroupInfo(mypy = depset([cache_directory, output_file])),
+        ]
+    else:
+        return [
+            OutputGroupInfo(mypy = depset([output_file])),
+        ]
 
-def mypy(mypy_cli = None, mypy_ini = None, types = None):
+def mypy(mypy_cli = None, mypy_ini = None, types = None, cache = True):
     """
     Create a mypy target inferring upstream caches from deps.
 
@@ -129,6 +137,7 @@ def mypy(mypy_cli = None, mypy_ini = None, types = None):
                     ```
                     Use the types extension to create this map for a requirements.in
                     or requirements.txt file.
+        cache:      (optional, default True) propagate the mypy cache
 
     Returns:
         a mypy aspect.
@@ -157,6 +166,7 @@ def mypy(mypy_cli = None, mypy_ini = None, types = None):
             # this kind of attr to pass naturally
             "_types_keys": attr.label_list(default = types.keys()),
             "_types_values": attr.label_list(default = types.values()),
+            "cache": attr.bool(default = cache),
         } | additional_attrs,
     )
 
