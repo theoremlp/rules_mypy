@@ -114,7 +114,7 @@ mypy_cli(
 ```
 
 ## Skipping Targets
-Adding the `no-mypy` tag will elide type checking for that target. This is seful for targets outside your
+Adding the `no-mypy` tag will elide type checking for that target. This is useful for targets outside of your
 control that generate py_* rules, such as `compile_pip_requirements` or `py_console_script_binary`, and modules
 that still need typing.
 
