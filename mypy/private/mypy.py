@@ -77,6 +77,8 @@ def main(
             sys.stderr.write(errors)
             sys.stderr.write(report)
     else:
+        report = ""
+        errors = ""
         status = 0
 
     if output:
