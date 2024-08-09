@@ -28,7 +28,7 @@ def _mypy_impl(target, ctx):
         return []
 
     # disable if a target is tagged with at least one suppression tag
-    for tag in ctx.attr.suppression_tags:
+    for tag in ctx.attr._suppression_tags:
         if tag in ctx.rule.attr.tags:
             return []
 
@@ -169,8 +169,8 @@ def mypy(mypy_cli = None, mypy_ini = None, types = None, cache = True, suppressi
             # this kind of attr to pass naturally
             "_types_keys": attr.label_list(default = types.keys()),
             "_types_values": attr.label_list(default = types.values()),
+            "_suppression_tags": attr.string_list(default = suppression_tags or ["no-mypy"]),
             "cache": attr.bool(default = cache),
-            "suppression_tags": attr.string_list(default = suppression_tags or ["no-mypy"]),
         } | additional_attrs,
     )
 
