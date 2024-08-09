@@ -5,6 +5,7 @@ import sys
 import click
 
 import mypy.api
+import mypy.util
 
 
 def _merge_upstream_caches(cache_dir: str, upstream_caches: list[str]) -> None:
@@ -86,7 +87,9 @@ def main(
             file.write(errors)
             file.write(report)
 
-    sys.exit(status)
+    # use mypy's hard_exit to exit without freeing objects, it can be meaningfully
+    # faster than an orderly shutdown
+    mypy.util.hard_exit(status)
 
 
 if __name__ == "__main__":
