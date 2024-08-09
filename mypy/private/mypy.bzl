@@ -27,9 +27,10 @@ def _mypy_impl(target, ctx):
     if ctx.rule.kind not in ["py_binary", "py_library", "py_test"]:
         return []
 
-    # disable if a target is tagged "no-mypy"
-    if "no-mypy" in ctx.rule.attr.tags:
-        return []
+    # disable if a target is tagged with at least one suppression tag
+    for tag in ctx.attr.suppression_tags:
+        if tag in ctx.rule.attr.tags:
+            return []
 
     # we need to help mypy map the location of external deps by setting
     # MYPYPATH to include the site-packages directories.
@@ -120,7 +121,7 @@ def _mypy_impl(target, ctx):
             OutputGroupInfo(mypy = depset([output_file])),
         ]
 
-def mypy(mypy_cli = None, mypy_ini = None, types = None, cache = True):
+def mypy(mypy_cli = None, mypy_ini = None, types = None, cache = True, suppression_tags = None):
     """
     Create a mypy target inferring upstream caches from deps.
 
@@ -138,6 +139,8 @@ def mypy(mypy_cli = None, mypy_ini = None, types = None, cache = True):
                     Use the types extension to create this map for a requirements.in
                     or requirements.txt file.
         cache:      (optional, default True) propagate the mypy cache
+        suppression_tags: (optional, default ["no-mypy"]) tags that suppress running
+                    mypy on a particular target.
 
     Returns:
         a mypy aspect.
@@ -167,6 +170,7 @@ def mypy(mypy_cli = None, mypy_ini = None, types = None, cache = True):
             "_types_keys": attr.label_list(default = types.keys()),
             "_types_values": attr.label_list(default = types.values()),
             "cache": attr.bool(default = cache),
+            "suppression_tags": attr.string_list(default = suppression_tags or ["no-mypy"]),
         } | additional_attrs,
     )
 
