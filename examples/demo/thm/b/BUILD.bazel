@@ -9,5 +9,6 @@ py_library(
         "//thm",
         "//thm/a",
         requirement("cachetools"),
+        requirement("numpy"),
     ],
 )

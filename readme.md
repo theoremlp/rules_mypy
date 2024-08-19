@@ -64,6 +64,8 @@ build --output_groups=+mypy
 
 ## Customizing mypy
 
+### Configuring mypy with mypy.ini
+
 mypy's behavior may be customized using a [mypy config file](https://mypy.readthedocs.io/en/stable/config_file.html) file. To use a mypy config file, pass a label for a valid config file to the `mypy` aspect factory:
 
 ```starlark
@@ -72,6 +74,19 @@ mypy_aspect = mypy(
     types = types,
 )
 ```
+
+> [!NOTE]
+> The label passed to `mypy_ini` needs to be absolute (a prefix of `@@` means the root repo).
+
+> [!NOTE]
+> mypy.ini files should likely contain the following lines to suppress type-checking 3rd party modules.
+>
+> ```
+> follow_imports = silent
+> follow_imports_for_stubs = True
+> ```
+
+### Changing the version of mypy and/or including plugins
 
 To customize the version of mypy, use rules_python's requirements resolution and construct a custom mypy CLI:
 
@@ -114,15 +129,14 @@ mypy_cli(
 ```
 
 ## Skipping Targets
-Adding the `no-mypy` tag will elide type checking for that target. This is useful for targets outside of your
-control that generate py_* rules, such as `compile_pip_requirements` or `py_console_script_binary`, and modules
-that still need typing.
 
-For example:
+Skip running mypy on targets by tagging with `no-mypy`, or customize the tags that will suppress mypy by providing a list to the `suppression_tags` argument of the mypy aspect initializer:
+
 ```starlark
-py_binary(
-    name = "no_types_yet_bin",
-    srcs = ["no_types_yet_main.py"],
-    tags = ["no-mypy"],
+load("@rules_mypy//mypy:mypy.bzl", "mypy")
+
+mypy_aspect = mypy(
+    suppression_tags = ["no-mypy", "no-checks"],
+    types = types,
 )
 ```
