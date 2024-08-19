@@ -67,8 +67,6 @@ def main(
                 f"--cache-dir={cache_dir}",
                 # use current dir + MYPYPATH to resolve deps
                 "--explicit-package-bases",
-                # do not type-check dependencies, only use deps for type-checking srcs
-                "--follow-imports=silent",
                 # speedup
                 "--fast-module-lookup",
             ]
