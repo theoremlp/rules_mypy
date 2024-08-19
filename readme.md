@@ -68,7 +68,7 @@ mypy's behavior may be customized using a [mypy config file](https://mypy.readth
 
 ```starlark
 mypy_aspect = mypy(
-    mypy_ini = "//:mypy.ini",
+    mypy_ini = "@@//:mypy.ini",
     types = types,
 )
 ```
