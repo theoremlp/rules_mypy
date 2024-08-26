@@ -1,6 +1,7 @@
 import pathlib
 import shutil
 import sys
+import tempfile
 
 import click
 
@@ -51,8 +52,11 @@ def main(
     mypy_ini: str | None,
     srcs: tuple[str, ...],
 ) -> None:
-    cache_dir = cache_dir or ".mypy_cache"
-    _merge_upstream_caches(cache_dir, list(upstream_caches))
+    if cache_dir:
+        _merge_upstream_caches(cache_dir, list(upstream_caches))
+    else:
+        tmpdir = tempfile.TemporaryDirectory()
+        cache_dir = tmpdir.name
 
     if len(srcs) > 0:
         maybe_config = ["--config-file", mypy_ini] if mypy_ini else []
@@ -84,6 +88,9 @@ def main(
         with open(output, "w+") as file:
             file.write(errors)
             file.write(report)
+
+    if tmpdir:
+        tmpdir.cleanup()
 
     # use mypy's hard_exit to exit without freeing objects, it can be meaningfully
     # faster than an orderly shutdown
