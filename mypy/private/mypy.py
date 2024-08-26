@@ -53,6 +53,7 @@ def main(
     srcs: tuple[str, ...],
 ) -> None:
     if cache_dir:
+        tmpdir = None
         _merge_upstream_caches(cache_dir, list(upstream_caches))
     else:
         tmpdir = tempfile.TemporaryDirectory()
