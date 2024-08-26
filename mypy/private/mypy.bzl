@@ -77,12 +77,24 @@ def _mypy_impl(target, ctx):
     # are the same and mypy resolves the first ones, first.
     mypy_path = ":".join(types + external_deps + unique_generated_dirs)
 
-    cache_directory = ctx.actions.declare_directory(ctx.rule.attr.name + ".mypy_cache")
     output_file = ctx.actions.declare_file(ctx.rule.attr.name + ".mypy_stdout")
 
     args = ctx.actions.args()
     args.add("--output", output_file)
-    args.add("--cache-dir", cache_directory.path)
+
+    if ctx.attr.cache:
+        cache_directory = ctx.actions.declare_directory(ctx.rule.attr.name + ".mypy_cache")
+        args.add("--cache-dir", cache_directory.path)
+
+        outputs = [output_file, cache_directory]
+        result_info = [
+            MypyCacheInfo(directory = cache_directory),
+            OutputGroupInfo(mypy = depset(outputs)),
+        ]
+    else:
+        outputs = [output_file]
+        result_info = [OutputGroupInfo(mypy = depset(outputs))]
+
     args.add_all([c.path for c in upstream_caches], before_each = "--upstream-cache")
     args.add_all(ctx.rule.files.srcs)
 
@@ -99,7 +111,7 @@ def _mypy_impl(target, ctx):
             direct = ctx.rule.files.srcs + upstream_caches + config_files,
             transitive = depsets,
         ),
-        outputs = [output_file, cache_directory],
+        outputs = outputs,
         executable = ctx.executable._mypy_cli,
         arguments = [args],
         env = {
@@ -111,15 +123,7 @@ def _mypy_impl(target, ctx):
         } | ctx.configuration.default_shell_env,
     )
 
-    if ctx.attr.cache:
-        return [
-            MypyCacheInfo(directory = cache_directory),
-            OutputGroupInfo(mypy = depset([cache_directory, output_file])),
-        ]
-    else:
-        return [
-            OutputGroupInfo(mypy = depset([output_file])),
-        ]
+    return result_info
 
 def mypy(mypy_cli = None, mypy_ini = None, types = None, cache = True, suppression_tags = None):
     """
