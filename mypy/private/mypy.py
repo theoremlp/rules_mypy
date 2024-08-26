@@ -1,7 +1,9 @@
+import contextlib
 import pathlib
 import shutil
 import sys
 import tempfile
+from typing import Any, Generator
 
 import click
 
@@ -33,6 +35,53 @@ def _merge_upstream_caches(cache_dir: str, upstream_caches: list[str]) -> None:
         missing_stubs.unlink()
 
 
+@contextlib.contextmanager
+def managed_cache_dir(
+    cache_dir: str | None, upstream_caches: tuple[str, ...]
+) -> Generator[str, Any, Any]:
+    """
+    Returns a managed cache directory.
+
+    When cache_dir exists, returns a merged view of cache_dir with upstream_caches.
+    Otherwise, returns a temporary directory that will be cleaned up when the resource
+    is released.
+    """
+    if cache_dir:
+        _merge_upstream_caches(cache_dir, list(upstream_caches))
+        yield cache_dir
+    else:
+        tmpdir = tempfile.TemporaryDirectory()
+        yield tmpdir.name
+        tmpdir.cleanup()
+
+
+def run_mypy(
+    mypy_ini: str | None, cache_dir: str, srcs: tuple[str, ...]
+) -> tuple[str, str, int]:
+    maybe_config = ["--config-file", mypy_ini] if mypy_ini else []
+    report, errors, status = mypy.api.run(
+        maybe_config
+        + [
+            # do not check mtime in cache
+            "--skip-cache-mtime-checks",
+            # mypy defaults to incremental, but force it on anyway
+            "--incremental",
+            # use a known cache-dir
+            f"--cache-dir={cache_dir}",
+            # use current dir + MYPYPATH to resolve deps
+            "--explicit-package-bases",
+            # speedup
+            "--fast-module-lookup",
+        ]
+        + list(srcs)
+    )
+    if status:
+        sys.stderr.write(errors)
+        sys.stderr.write(report)
+
+    return report, errors, status
+
+
 @click.command()
 @click.option("--output", required=False, type=click.Path())
 @click.option("--cache-dir", required=False, type=click.Path())
@@ -52,46 +101,16 @@ def main(
     mypy_ini: str | None,
     srcs: tuple[str, ...],
 ) -> None:
-    if cache_dir:
-        tmpdir = None
-        _merge_upstream_caches(cache_dir, list(upstream_caches))
-    else:
-        tmpdir = tempfile.TemporaryDirectory()
-        cache_dir = tmpdir.name
-
     if len(srcs) > 0:
-        maybe_config = ["--config-file", mypy_ini] if mypy_ini else []
-        report, errors, status = mypy.api.run(
-            maybe_config
-            + [
-                # do not check mtime in cache
-                "--skip-cache-mtime-checks",
-                # mypy defaults to incremental, but force it on anyway
-                "--incremental",
-                # use a known cache-dir
-                f"--cache-dir={cache_dir}",
-                # use current dir + MYPYPATH to resolve deps
-                "--explicit-package-bases",
-                # speedup
-                "--fast-module-lookup",
-            ]
-            + list(srcs)
-        )
-        if status:
-            sys.stderr.write(errors)
-            sys.stderr.write(report)
+        with managed_cache_dir(cache_dir, upstream_caches) as cache_dir:
+            report, errors, status = run_mypy(mypy_ini, cache_dir, srcs)
     else:
-        report = ""
-        errors = ""
-        status = 0
+        report, errors, status = "", "", 0
 
     if output:
         with open(output, "w+") as file:
             file.write(errors)
             file.write(report)
-
-    if tmpdir:
-        tmpdir.cleanup()
 
     # use mypy's hard_exit to exit without freeing objects, it can be meaningfully
     # faster than an orderly shutdown
