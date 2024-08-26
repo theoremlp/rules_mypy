@@ -78,18 +78,22 @@ def _mypy_impl(target, ctx):
     mypy_path = ":".join(types + external_deps + unique_generated_dirs)
 
     output_file = ctx.actions.declare_file(ctx.rule.attr.name + ".mypy_stdout")
-    outputs = [output_file]
 
     args = ctx.actions.args()
     args.add("--output", output_file)
 
     if ctx.attr.cache:
-        # only declare + use cache directory if in use
         cache_directory = ctx.actions.declare_directory(ctx.rule.attr.name + ".mypy_cache")
         args.add("--cache-dir", cache_directory.path)
-        outputs.append(cache_directory)
+
+        outputs = [output_file, cache_directory]
+        result_info = [
+            MypyCacheInfo(directory = cache_directory),
+            OutputGroupInfo(mypy = depset(outputs)),
+        ]
     else:
-        cache_directory = None
+        outputs = [output_file]
+        result_info = [OutputGroupInfo(mypy = depset(outputs))]
 
     args.add_all([c.path for c in upstream_caches], before_each = "--upstream-cache")
     args.add_all(ctx.rule.files.srcs)
@@ -119,15 +123,7 @@ def _mypy_impl(target, ctx):
         } | ctx.configuration.default_shell_env,
     )
 
-    if ctx.attr.cache:
-        return [
-            MypyCacheInfo(directory = cache_directory),
-            OutputGroupInfo(mypy = depset(outputs)),
-        ]
-    else:
-        return [
-            OutputGroupInfo(mypy = depset([output_file])),
-        ]
+    return result_info
 
 def mypy(mypy_cli = None, mypy_ini = None, types = None, cache = True, suppression_tags = None):
     """
