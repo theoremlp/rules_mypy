@@ -116,7 +116,7 @@ Further, to use mypy plugins referenced in any config file, use the `deps` attri
 
 ```starlark
 # in a BUILD file
-load("@pip//:requirements.bzl", "requirements") # '@pip' must match configured pip hub_name
+load("@pip//:requirements.bzl", "requirement") # '@pip' must match configured pip hub_name
 load("@rules_mypy//mypy:mypy.bzl", "mypy", "mypy_cli")
 
 mypy_cli(
