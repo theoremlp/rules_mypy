@@ -75,7 +75,7 @@ def _mypy_impl(target, ctx):
 
     # types need to appear first in the mypy path since the module directories
     # are the same and mypy resolves the first ones, first.
-    mypy_path = ":".join(types + external_deps + unique_generated_dirs)
+    mypy_path = ":".join(types + external_deps + unique_generated_dirs + [ctx.label.package])
 
     output_file = ctx.actions.declare_file(ctx.rule.attr.name + ".mypy_stdout")
 
