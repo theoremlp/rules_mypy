@@ -12,3 +12,11 @@ py_library(
         requirement("numpy"),
     ],
 )
+
+py_test(
+    name = "test_b",
+    srcs = ["test_b.py"],
+    deps = [
+        ":b",
+    ],
+)
