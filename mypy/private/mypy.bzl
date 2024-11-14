@@ -116,7 +116,7 @@ def _mypy_impl(target, ctx):
         mnemonic = "mypy",
         progress_message = "mypy %{label}",
         inputs = depset(
-            direct = ctx.rule.files.srcs + upstream_caches + config_files,
+            direct = ctx.rule.files.srcs + ctx.rule.files.data + upstream_caches + config_files,
             transitive = depsets,
         ),
         outputs = outputs,
