@@ -1,0 +1,15 @@
+py_library(
+    name = "a",
+    srcs = glob(["a/**/*.py"]),
+    imports = ["a"],
+)
+
+py_library(
+    name = "b",
+    srcs = glob(["b/**/*.py"]),
+    imports = ["b"],
+    deps = [
+        ":a",
+        "@rules_python//python/runfiles",
+    ],
+)
