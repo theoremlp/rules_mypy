@@ -8,5 +8,8 @@ py_library(
     name = "b",
     srcs = glob(["b/**/*.py"]),
     imports = ["b"],
-    deps = [":a"],
+    deps = [
+        ":a",
+        "@rules_python//python/runfiles",
+    ],
 )
