@@ -1,0 +1,7 @@
+py_binary(
+    name = "foo",
+    srcs = ["foo.py"],
+    deps = [
+        "//generated_file_imports/nested:bar",
+    ],
+)
