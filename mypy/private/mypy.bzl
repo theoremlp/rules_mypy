@@ -94,12 +94,12 @@ def _mypy_impl(target, ctx):
         # and as a way to skip iterating over depset contents to find generated
         # file roots?
 
-    unique_imports_dirs = custom_imports.keys()
+    unique_imports_dirs = imports_dirs.keys()
     unique_generated_dirs = generated_dirs.keys()
     generated_imports_dirs = []
     for generated_dir in unique_generated_dirs:
-        for custom_import in unique_imports_dirs:
-            generated_imports_dirs.append("{}/{}".format(generated_dir, custom_import))
+        for import_ in unique_imports_dirs:
+            generated_imports_dirs.append("{}/{}".format(generated_dir, import_))
 
     # types need to appear first in the mypy path since the module directories
     # are the same and mypy resolves the first ones, first.
