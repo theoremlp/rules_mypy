@@ -56,6 +56,9 @@ def _mypy_impl(target, ctx):
         if dep.label in type_mapping
     ]
 
+    if PyInfo in target:
+        custom_imports.extend([x.split("/", 1)[-1] for x in target[PyInfo].imports.to_list()])
+
     for dep in (ctx.rule.attr.deps + additional_types):
         depsets.append(dep.default_runfiles.files)
 
