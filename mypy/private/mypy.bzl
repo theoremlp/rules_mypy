@@ -115,11 +115,12 @@ def _mypy_impl(target, ctx):
     else:
         config_files = []
 
+    py_type_files = [x for x in ctx.rule.files.data if x.basename == "py.typed" or x.extension == "pyi"]
     ctx.actions.run(
         mnemonic = "mypy",
         progress_message = "mypy %{label}",
         inputs = depset(
-            direct = ctx.rule.files.srcs + upstream_caches + config_files,
+            direct = ctx.rule.files.srcs + py_type_files + upstream_caches + config_files,
             transitive = depsets,
         ),
         outputs = outputs,
