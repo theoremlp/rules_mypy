@@ -80,10 +80,14 @@ def _mypy_impl(target, ctx):
         # file roots?
 
     unique_generated_dirs = generated_dirs.keys()
+    generated_custom_imports = []
+    for generated_dir in unique_generated_dirs:
+        for custom_import in custom_imports:
+            generated_custom_imports.append("{}/{}".format(generated_dir, custom_import))
 
     # types need to appear first in the mypy path since the module directories
     # are the same and mypy resolves the first ones, first.
-    mypy_path = ":".join(types + external_deps + custom_imports + unique_generated_dirs)
+    mypy_path = ":".join(types + external_deps + custom_imports + unique_generated_dirs + generated_custom_imports)
 
     output_file = ctx.actions.declare_file(ctx.rule.attr.name + ".mypy_stdout")
 
