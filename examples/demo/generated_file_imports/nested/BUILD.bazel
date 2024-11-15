@@ -1,0 +1,12 @@
+genrule(
+    name = "generate_source",
+    outs = ["bar.py"],
+    cmd = "echo 'def foo(): print(\"hi\")' > $(OUTS)",
+)
+
+py_library(
+    name = "bar",
+    srcs = ["bar.py"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+)
