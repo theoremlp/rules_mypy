@@ -18,7 +18,8 @@ MypyCacheInfo = provider(
     },
 )
 
-def _translate_custom_import(import_):
+def _extract_import_dir(import_):
+    # _main/path/to/package -> path/to/package
     return import_.split("/", 1)[-1]
 
 def _mypy_impl(target, ctx):
@@ -61,7 +62,7 @@ def _mypy_impl(target, ctx):
 
     if PyInfo in target:
         for import_ in target[PyInfo].imports.to_list():
-            imports_dirs[_translate_custom_import(import_)] = 1
+            imports_dirs[_extract_import_dir(import_)] = 1
 
     for dep in (ctx.rule.attr.deps + additional_types):
         depsets.append(dep.default_runfiles.files)
@@ -79,9 +80,8 @@ def _mypy_impl(target, ctx):
                    "typing_extensions" not in x
             ])
         elif PyInfo in dep and dep.label.workspace_name == "":
-            # _main/path/to/package -> path/to/package
             for import_ in dep[PyInfo].imports.to_list():
-                imports_dirs[_translate_custom_import(import_)] = 1
+                imports_dirs[_extract_import_dir(import_)] = 1
 
         if MypyCacheInfo in dep:
             upstream_caches.append(dep[MypyCacheInfo].directory)
