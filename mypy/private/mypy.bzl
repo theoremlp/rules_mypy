@@ -18,6 +18,9 @@ MypyCacheInfo = provider(
     },
 )
 
+def _translate_custom_import(import_):
+    return import_.split("/", 1)[-1]
+
 def _mypy_impl(target, ctx):
     # skip non-root targets
     if target.label.workspace_root != "":
@@ -38,7 +41,7 @@ def _mypy_impl(target, ctx):
 
     # we need to help mypy map the location of first party deps with custom
     # 'imports' by setting MYPYPATH.
-    custom_imports = []
+    imports_dirs = {}
 
     # generated dirs
     generated_dirs = {}
@@ -57,7 +60,8 @@ def _mypy_impl(target, ctx):
     ]
 
     if PyInfo in target:
-        custom_imports.extend([x.split("/", 1)[-1] for x in target[PyInfo].imports.to_list()])
+        for import_ in target[PyInfo].imports.to_list():
+            imports_dirs[_translate_custom_import(import_)] = 1
 
     for dep in (ctx.rule.attr.deps + additional_types):
         depsets.append(dep.default_runfiles.files)
@@ -65,7 +69,9 @@ def _mypy_impl(target, ctx):
         if PyTypeLibraryInfo in dep:
             types.append(dep[PyTypeLibraryInfo].directory.path + "/site-packages")
         elif dep.label.workspace_root.startswith("external/"):
+            # TODO: do we need this, still?
             external_deps.append(dep.label.workspace_root + "/site-packages")
+
             external_deps.extend([
                 "external/{}".format(x)
                 for x in dep[PyInfo].imports.to_list()
@@ -74,7 +80,8 @@ def _mypy_impl(target, ctx):
             ])
         elif PyInfo in dep and dep.label.workspace_name == "":
             # _main/path/to/package -> path/to/package
-            custom_imports.extend([x.split("/", 1)[-1] for x in dep[PyInfo].imports.to_list()])
+            for import_ in dep[PyInfo].imports.to_list():
+                imports_dirs[_translate_custom_import(import_)] = 1
 
         if MypyCacheInfo in dep:
             upstream_caches.append(dep[MypyCacheInfo].directory)
@@ -87,15 +94,16 @@ def _mypy_impl(target, ctx):
         # and as a way to skip iterating over depset contents to find generated
         # file roots?
 
+    unique_imports_dirs = custom_imports.keys()
     unique_generated_dirs = generated_dirs.keys()
-    generated_custom_imports = []
+    generated_imports_dirs = []
     for generated_dir in unique_generated_dirs:
-        for custom_import in custom_imports:
-            generated_custom_imports.append("{}/{}".format(generated_dir, custom_import))
+        for custom_import in unique_imports_dirs:
+            generated_imports_dirs.append("{}/{}".format(generated_dir, custom_import))
 
     # types need to appear first in the mypy path since the module directories
     # are the same and mypy resolves the first ones, first.
-    mypy_path = ":".join(types + external_deps + custom_imports + unique_generated_dirs + generated_custom_imports)
+    mypy_path = ":".join(types + external_deps + unique_imports_dirs + unique_generated_dirs + generated_imports_dirs)
 
     output_file = ctx.actions.declare_file(ctx.rule.attr.name + ".mypy_stdout")
 
