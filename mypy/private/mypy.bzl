@@ -66,7 +66,12 @@ def _mypy_impl(target, ctx):
             types.append(dep[PyTypeLibraryInfo].directory.path + "/site-packages")
         elif dep.label.workspace_root.startswith("external/"):
             external_deps.append(dep.label.workspace_root + "/site-packages")
-            external_deps.extend(["external/{}".format(x) for x in dep[PyInfo].imports.to_list()])
+            external_deps.extend([
+                "external/{}".format(x)
+                for x in dep[PyInfo].imports.to_list()
+                if "mypy_extensions" not in x and
+                   "typing_extensions" not in x
+            ])
         elif PyInfo in dep and dep.label.workspace_name == "":
             # _main/path/to/package -> path/to/package
             custom_imports.extend([x.split("/", 1)[-1] for x in dep[PyInfo].imports.to_list()])
