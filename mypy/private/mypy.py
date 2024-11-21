@@ -1,11 +1,10 @@
+import argparse
 import contextlib
 import pathlib
 import shutil
 import sys
 import tempfile
 from typing import Any, Generator
-
-import click
 
 import mypy.api
 import mypy.util
@@ -37,7 +36,7 @@ def _merge_upstream_caches(cache_dir: str, upstream_caches: list[str]) -> None:
 
 @contextlib.contextmanager
 def managed_cache_dir(
-    cache_dir: str | None, upstream_caches: tuple[str, ...]
+    cache_dir: str | None, upstream_caches: list[str]
 ) -> Generator[str, Any, Any]:
     """
     Returns a managed cache directory.
@@ -56,7 +55,7 @@ def managed_cache_dir(
 
 
 def run_mypy(
-    mypy_ini: str | None, cache_dir: str, srcs: tuple[str, ...]
+    mypy_ini: str | None, cache_dir: str, srcs: list[str]
 ) -> tuple[str, str, int]:
     maybe_config = ["--config-file", mypy_ini] if mypy_ini else []
     report, errors, status = mypy.api.run(
@@ -73,7 +72,7 @@ def run_mypy(
             # speedup
             "--fast-module-lookup",
         ]
-        + list(srcs)
+        + srcs
     )
     if status:
         sys.stderr.write(errors)
@@ -82,24 +81,12 @@ def run_mypy(
     return report, errors, status
 
 
-@click.command()
-@click.option("--output", required=False, type=click.Path())
-@click.option("--cache-dir", required=False, type=click.Path())
-@click.option(
-    "--upstream-cache",
-    "upstream_caches",
-    multiple=True,
-    required=False,
-    type=click.Path(exists=True),
-)
-@click.option("--mypy-ini", required=False, type=click.Path(exists=True))
-@click.argument("srcs", nargs=-1, type=click.Path(exists=True))
-def main(
+def run(
     output: str | None,
     cache_dir: str | None,
-    upstream_caches: tuple[str, ...],
+    upstream_caches: list[str],
     mypy_ini: str | None,
-    srcs: tuple[str, ...],
+    srcs: list[str],
 ) -> None:
     if len(srcs) > 0:
         with managed_cache_dir(cache_dir, upstream_caches) as cache_dir:
@@ -115,6 +102,24 @@ def main(
     # use mypy's hard_exit to exit without freeing objects, it can be meaningfully
     # faster than an orderly shutdown
     mypy.util.hard_exit(status)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", required=False)
+    parser.add_argument("-c", "--cache-dir", required=False)
+    parser.add_argument("--upstream-cache", required=False, action="append")
+    parser.add_argument("--mypy-ini", required=False)
+    parser.add_argument("src", nargs="*")
+    args = parser.parse_args()
+
+    output: str | None = args.output
+    cache_dir: str | None = args.cache_dir
+    upstream_cache: list[str] = args.upstream_cache or []
+    mypy_ini: str | None = args.mypy_ini
+    srcs: list[str] = args.src
+
+    run(output, cache_dir, upstream_cache, mypy_ini, srcs)
 
 
 if __name__ == "__main__":
