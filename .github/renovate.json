@@ -1,20 +1,33 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [":semanticCommitsDisabled"],
-  "enabledManagers": ["github-actions", "pip_requirements"],
+  "extends": [
+    ":semanticCommitsDisabled"
+  ],
+  "enabledManagers": [
+    "github-actions",
+    "pip_requirements"
+  ],
   "timezone": "America/New_York",
-  "schedule": ["every weekday after 9am before 5pm"],
+  "schedule": [
+    "every weekday after 9am before 5pm"
+  ],
   "branchConcurrentLimit": 10,
-  "labels": ["automerge"],
+  "labels": [
+    "automerge"
+  ],
   "dependencyDashboard": true,
   "packageRules": [
     {
-      "matchFiles": ["MODULE.bazel"],
+      "matchFileNames": [
+        "MODULE.bazel"
+      ],
       "enabled": false
     }
   ],
   "pip_requirements": {
-    "fileMatch": ["mypy/private/requirements.in"],
+    "fileMatch": [
+      "mypy/private/requirements.in"
+    ],
     "ignorePaths": [
       "examples/demo/requirements.in",
       "examples/demo/requirements.txt",
