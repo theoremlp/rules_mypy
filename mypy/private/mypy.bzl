@@ -22,6 +22,28 @@ def _extract_import_dir(import_):
     # _main/path/to/package -> path/to/package
     return import_.split("/", 1)[-1]
 
+def _opt_out(opt_out_tags, rule_tags):
+    "Returns true iff at least one opt_out_tag appears in rule_tags."
+    if len(opt_out_tags) == 0:
+        return False
+
+    for tag in opt_out_tags:
+        if tag in rule_tags:
+            return True
+
+    return False
+
+def _opt_in(opt_in_tags, rule_tags):
+    "Returns true iff opt_in_tags is empty or at least one of opt_in_tags appears in rule_tags."
+    if len(opt_in_tags) == 0:
+        return True
+
+    for tag in opt_in_tags:
+        if tag in rule_tags:
+            return True
+
+    return False
+
 def _mypy_impl(target, ctx):
     # skip non-root targets
     if target.label.workspace_root != "":
@@ -32,9 +54,12 @@ def _mypy_impl(target, ctx):
         return []
 
     # disable if a target is tagged with at least one suppression tag
-    for tag in ctx.attr._suppression_tags:
-        if tag in ctx.rule.attr.tags:
-            return []
+    if _opt_out(ctx.attr._suppression_tags, ctx.rule.attr.tags):
+        return []
+
+    # disable if there are opt-in tags and one is not present
+    if not _opt_in(ctx.attr._opt_in_tags, ctx.rule.attr.tags):
+        return []
 
     # we need to help mypy map the location of external deps by setting
     # MYPYPATH to include the site-packages directories.
@@ -154,7 +179,13 @@ def _mypy_impl(target, ctx):
 
     return result_info
 
-def mypy(mypy_cli = None, mypy_ini = None, types = None, cache = True, suppression_tags = None):
+def mypy(
+        mypy_cli = None,
+        mypy_ini = None,
+        types = None,
+        cache = True,
+        suppression_tags = None,
+        opt_in_tags = None):
     """
     Create a mypy target inferring upstream caches from deps.
 
@@ -174,6 +205,9 @@ def mypy(mypy_cli = None, mypy_ini = None, types = None, cache = True, suppressi
         cache:      (optional, default True) propagate the mypy cache
         suppression_tags: (optional, default ["no-mypy"]) tags that suppress running
                     mypy on a particular target.
+        opt_in_tags: (optional, default []) tags that must be present for mypy to run
+                    on a particular target. When specified, this ruleset will _only_
+                    run on targets with this tag.
 
     Returns:
         a mypy aspect.
@@ -203,6 +237,7 @@ def mypy(mypy_cli = None, mypy_ini = None, types = None, cache = True, suppressi
             "_types_keys": attr.label_list(default = types.keys()),
             "_types_values": attr.label_list(default = types.values()),
             "_suppression_tags": attr.string_list(default = suppression_tags or ["no-mypy"]),
+            "_opt_in_tags": attr.string_list(default = opt_in_tags or []),
             "cache": attr.bool(default = cache),
         } | additional_attrs,
     )
