@@ -7,7 +7,7 @@ directories (the results of other mypy builds), the underlying action first atte
 directories.
 """
 
-load("@python_versions//3.12:defs.bzl", "py_binary")
+load("@python_versions//3.12:defs.bzl", py312_binary = "py_binary")
 load("@rules_mypy_pip//:requirements.bzl", "requirement")
 load(":py_type_library.bzl", "PyTypeLibraryInfo")
 
@@ -207,14 +207,18 @@ def mypy(mypy_cli = None, mypy_ini = None, types = None, cache = True, suppressi
         } | additional_attrs,
     )
 
-def mypy_cli(name, deps = None, mypy_requirement = None, tags = None):
+def mypy_cli(name, deps = None, mypy_requirement = None, py_binary = py312_binary, tags = None):
     """
     Produce a custom mypy executable for use with the mypy build rule.
 
     Args:
         name: name of the binary target this macro produces
         deps: (optional) additional dependencies to include (e.g. mypy plugins)
+              (note: must match the Python version of py_binary)
         mypy_requirement: (optional) a replacement mypy requirement
+              (note: must match the Python version of py_binary)
+        py_binary: (optional) the py_binary rule to use when constructing this target
+              (defaults to a rules_mypy specified version, currently Python 3.12)
         tags: (optional) tags to include in the binary target
     """
 
@@ -226,9 +230,6 @@ def mypy_cli(name, deps = None, mypy_requirement = None, tags = None):
         srcs = ["@rules_mypy//mypy/private:mypy.py"],
         main = "@rules_mypy//mypy/private:mypy.py",
         visibility = ["//visibility:public"],
-        deps = [
-            mypy_requirement,
-            requirement("click"),
-        ] + deps,
+        deps = [mypy_requirement] + deps,
         tags = tags,
     )
