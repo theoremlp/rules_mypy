@@ -140,3 +140,16 @@ mypy_aspect = mypy(
     types = types,
 )
 ```
+
+## Running in opt-in mode
+
+To add type checking to a codebase incrementally, configure a list of opt-in tags that will suppress running mypy by default unless a target is tagged explicitly with one of the opt-in tags.
+
+```starlark
+load("@rules_mypy//mypy:mypy.bzl", "mypy")
+
+mypy_aspect = mypy(
+    opt_in_tags = ["typecheck"],
+    types = types,
+)
+```
