@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "mypy/private/requirements.in"
+      - "examples/demo/requirements.in"
 jobs:
   update-requirements:
     name: Update requirements lockfiles
@@ -23,14 +24,25 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Update requirements lockfiles
         run: bazel run //mypy/private:generate_requirements_lock
+      - name: Update requirements lockfiles (examples/demo)
+        working-directory: examples/demo
+        run: bazel run //:generate_requirements_lock
       - name: Commit
         run: |
-          if [[ -n "$(git diff "mypy/private/requirements.txt")" ]]
+          if [[ -n "$( git diff \
+              "mypy/private/requirements.in" \
+              "mypy/private/requirements.txt" \
+              "examples/demo/requirements.in" \
+              "examples/demo/requirements.txt" \
+              )" ]]
           then
             git config --local user.name 'Theorem Automation'
             git config --local user.email 'thm-automation[bot]@users.noreply.github.com'
             git checkout -b thm-automation/tmp
+            git add "mypy/private/requirements.in"
             git add "mypy/private/requirements.txt"
+            git add "examples/demo/requirements.in"
+            git add "examples/demo/requirements.txt"
             git commit -m "Update requirements lockfiles"
             git push origin "HEAD:$GITHUB_HEAD_REF"
           fi
