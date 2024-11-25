@@ -1,10 +1,11 @@
 import argparse
 import contextlib
 import pathlib
+import os
 import shutil
 import sys
 import tempfile
-from typing import Any, Generator
+from typing import Any, Generator, Optional
 
 import mypy.api
 import mypy.util
@@ -18,7 +19,8 @@ def _merge_upstream_caches(cache_dir: str, upstream_caches: list[str]) -> None:
         upstream = pathlib.Path(upstream_dir)
 
         # TODO(mark): maybe there's a more efficient way to synchronize the cache dirs?
-        for dirpath, _, filenames in upstream.walk():
+        for dirpath_str, _, filenames in os.walk(upstream.as_posix()):
+            dirpath = pathlib.Path(dirpath_str)
             relative_dir = dirpath.relative_to(upstream)
             for file in filenames:
                 upstream_path = dirpath / file
@@ -36,7 +38,7 @@ def _merge_upstream_caches(cache_dir: str, upstream_caches: list[str]) -> None:
 
 @contextlib.contextmanager
 def managed_cache_dir(
-    cache_dir: str | None, upstream_caches: list[str]
+    cache_dir: Optional[str], upstream_caches: list[str]
 ) -> Generator[str, Any, Any]:
     """
     Returns a managed cache directory.
@@ -55,7 +57,7 @@ def managed_cache_dir(
 
 
 def run_mypy(
-    mypy_ini: str | None, cache_dir: str, srcs: list[str]
+    mypy_ini: Optional[str], cache_dir: str, srcs: list[str]
 ) -> tuple[str, str, int]:
     maybe_config = ["--config-file", mypy_ini] if mypy_ini else []
     report, errors, status = mypy.api.run(
@@ -82,10 +84,10 @@ def run_mypy(
 
 
 def run(
-    output: str | None,
-    cache_dir: str | None,
+    output: Optional[str],
+    cache_dir: Optional[str],
     upstream_caches: list[str],
-    mypy_ini: str | None,
+    mypy_ini: Optional[str],
     srcs: list[str],
 ) -> None:
     if len(srcs) > 0:
@@ -113,10 +115,10 @@ def main() -> None:
     parser.add_argument("src", nargs="*")
     args = parser.parse_args()
 
-    output: str | None = args.output
-    cache_dir: str | None = args.cache_dir
+    output: Optional[str] = args.output
+    cache_dir: Optional[str] = args.cache_dir
     upstream_cache: list[str] = args.upstream_cache or []
-    mypy_ini: str | None = args.mypy_ini
+    mypy_ini: Optional[str] = args.mypy_ini
     srcs: list[str] = args.src
 
     run(output, cache_dir, upstream_cache, mypy_ini, srcs)
