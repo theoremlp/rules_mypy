@@ -1,6 +1,7 @@
 import argparse
 import contextlib
 import pathlib
+import os
 import shutil
 import sys
 import tempfile
@@ -18,7 +19,8 @@ def _merge_upstream_caches(cache_dir: str, upstream_caches: list[str]) -> None:
         upstream = pathlib.Path(upstream_dir)
 
         # TODO(mark): maybe there's a more efficient way to synchronize the cache dirs?
-        for dirpath, _, filenames in upstream.walk():
+        for dirpath, _, filenames in os.walk(upstream.as_posix()):
+            dirpath = pathlib.Path(dirpath)
             relative_dir = dirpath.relative_to(upstream)
             for file in filenames:
                 upstream_path = dirpath / file
