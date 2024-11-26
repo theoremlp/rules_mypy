@@ -9,6 +9,7 @@ directories.
 
 load("@python_versions//3.12:defs.bzl", py312_binary = "py_binary")
 load("@rules_mypy_pip//:requirements.bzl", "requirement")
+load("@rules_python//python:defs.bzl", "PyInfo")
 load(":py_type_library.bzl", "PyTypeLibraryInfo")
 
 MypyCacheInfo = provider(
