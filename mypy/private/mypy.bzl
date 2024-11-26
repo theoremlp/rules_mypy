@@ -157,6 +157,14 @@ def _mypy_impl(target, ctx):
     else:
         config_files = []
 
+    extra_env = {}
+    if ctx.attr.color:
+        # force color on
+        extra_env["MYPY_FORCE_COLOR"] = "1"
+
+        # force color on only works if TERM is set to something that supports color
+        extra_env["TERM"] = "xterm-256color"
+
     py_type_files = [x for x in ctx.rule.files.data if x.basename == "py.typed" or x.extension == "pyi"]
     ctx.actions.run(
         mnemonic = "mypy",
@@ -168,13 +176,7 @@ def _mypy_impl(target, ctx):
         outputs = outputs,
         executable = ctx.executable._mypy_cli,
         arguments = [args],
-        env = {
-            "MYPYPATH": mypy_path,
-            # force color on
-            "MYPY_FORCE_COLOR": "1",
-            # force color on only works if TERM is set to something that supports color
-            "TERM": "xterm-256color",
-        } | ctx.configuration.default_shell_env,
+        env = {"MYPYPATH": mypy_path} | ctx.configuration.default_shell_env | extra_env,
     )
 
     return result_info
@@ -184,6 +186,7 @@ def mypy(
         mypy_ini = None,
         types = None,
         cache = True,
+        color = True,
         suppression_tags = None,
         opt_in_tags = None):
     """
@@ -203,6 +206,7 @@ def mypy(
                     Use the types extension to create this map for a requirements.in
                     or requirements.txt file.
         cache:      (optional, default True) propagate the mypy cache
+        color:      (optional, default True) use color in mypy output
         suppression_tags: (optional, default ["no-mypy"]) tags that suppress running
                     mypy on a particular target.
         opt_in_tags: (optional, default []) tags that must be present for mypy to run
@@ -239,6 +243,7 @@ def mypy(
             "_suppression_tags": attr.string_list(default = suppression_tags or ["no-mypy"]),
             "_opt_in_tags": attr.string_list(default = opt_in_tags or []),
             "cache": attr.bool(default = cache),
+            "color": attr.bool(default = color),
         } | additional_attrs,
     )
 
