@@ -46,6 +46,9 @@ def _generate_impl(rctx):
         if line.startswith("#") or line == "":
             continue
 
+        if ";" in line:
+            line, _ = line.split(";")
+
         if "~=" in line:
             req, _ = line.split("~=")
         elif "==" in line:
