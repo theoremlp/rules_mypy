@@ -9,6 +9,7 @@ directories.
 
 load("@python_versions//3.12:defs.bzl", py312_binary = "py_binary")
 load("@rules_mypy_pip//:requirements.bzl", "requirement")
+load("@rules_python//python:py_info.bzl", RulesPythonPyInfo = "PyInfo")
 load(":py_type_library.bzl", "PyTypeLibraryInfo")
 
 MypyCacheInfo = provider(
@@ -21,6 +22,17 @@ MypyCacheInfo = provider(
 def _extract_import_dir(import_):
     # _main/path/to/package -> path/to/package
     return import_.split("/", 1)[-1]
+
+def _imports(target):
+    if RulesPythonPyInfo in target:
+        return target[RulesPythonPyInfo].imports.to_list()
+    elif PyInfo in target:
+        return target[PyInfo].imports.to_list()
+    else:
+        return []
+
+def _extract_imports(target):
+    return [_extract_import_dir(i) for i in _imports(target)]
 
 def _opt_out(opt_out_tags, rule_tags):
     "Returns true iff at least one opt_out_tag appears in rule_tags."
@@ -85,9 +97,8 @@ def _mypy_impl(target, ctx):
         if dep.label in type_mapping
     ]
 
-    if PyInfo in target:
-        for import_ in target[PyInfo].imports.to_list():
-            imports_dirs[_extract_import_dir(import_)] = 1
+    for import_ in _extract_imports(target):
+        imports_dirs[import_] = 1
 
     for dep in (ctx.rule.attr.deps + additional_types):
         depsets.append(dep.default_runfiles.files)
@@ -100,13 +111,13 @@ def _mypy_impl(target, ctx):
 
             external_deps.extend([
                 "external/{}".format(x)
-                for x in dep[PyInfo].imports.to_list()
+                for x in _imports(dep)
                 if "mypy_extensions" not in x and
                    "typing_extensions" not in x
             ])
-        elif PyInfo in dep and dep.label.workspace_name == "":
-            for import_ in dep[PyInfo].imports.to_list():
-                imports_dirs[_extract_import_dir(import_)] = 1
+        elif dep.label.workspace_name == "":
+            for import_ in _extract_imports(dep):
+                imports_dirs[import_] = 1
 
         if MypyCacheInfo in dep:
             upstream_caches.append(dep[MypyCacheInfo].directory)
