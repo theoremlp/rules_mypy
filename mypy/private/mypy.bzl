@@ -61,8 +61,7 @@ def _mypy_impl(target, ctx):
     if target.label.workspace_root != "":
         return []
 
-    # only instrument py_* targets
-    if ctx.rule.kind not in ["py_binary", "py_library", "py_test"]:
+    if RulesPythonPyInfo not in target and PyInfo not in target:
         return []
 
     # disable if a target is tagged with at least one suppression tag
