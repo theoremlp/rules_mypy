@@ -72,6 +72,10 @@ def _mypy_impl(target, ctx):
     if not _opt_in(ctx.attr._opt_in_tags, ctx.rule.attr.tags):
         return []
 
+    # ignore rules that don't carry source files like py_proto_library
+    if not hasattr(ctx.rule.files, "srcs"):
+        return []
+
     # we need to help mypy map the location of external deps by setting
     # MYPYPATH to include the site-packages directories.
     external_deps = []
