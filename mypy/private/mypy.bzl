@@ -163,7 +163,7 @@ def _mypy_impl(target, ctx):
         result_info = [OutputGroupInfo(mypy = depset(outputs))]
 
     args.add_all([c.path for c in upstream_caches], before_each = "--upstream-cache")
-    args.add_all(ctx.rule.files.srcs)
+    args.add_all([s for s in ctx.rule.files.srcs if "/_virtual_imports/" not in s.short_path])
 
     if hasattr(ctx.attr, "_mypy_ini"):
         args.add("--mypy-ini", ctx.file._mypy_ini.path)
