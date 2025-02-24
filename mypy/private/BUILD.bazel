@@ -1,6 +1,6 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load("@python_versions//3.12:defs.bzl", "py_binary")
 load("@rules_mypy_pip//:requirements.bzl", "requirement")
+load("@rules_python//python:py_binary.bzl", "py_binary")
 load("@rules_uv//uv:pip.bzl", "pip_compile")
 load("@rules_uv//uv:venv.bzl", "create_venv")
 load(":mypy.bzl", "mypy_cli")
@@ -45,6 +45,7 @@ py_binary(
     name = "py_type_library",
     srcs = ["py_type_library.py"],
     main = "py_type_library.py",
+    python_version = "3.12",
     visibility = ["//visibility:public"],
     deps = [
         requirement("click"),
