@@ -19,9 +19,25 @@ MypyCacheInfo = provider(
     },
 )
 
-def _extract_import_dir(import_):
+def _extract_import_dirs(bin_dir, import_):
     # _main/path/to/package -> path/to/package
-    return import_.split("/", 1)[-1]
+    if import_.startswith("_main/"):
+        name = import_.split("/", 1)[-1]
+        return [
+            name,
+            bin_dir + "/" + name
+        ]
+
+    # hack: Filter out typing_extensions and mypy_extensions which are
+    # mypy-internal and are not allowed to occur explicitly on the path because
+    # they're vendored into mypy.
+    elif "typing_extensions" in import_ or "mypy_extensions" in import_:
+        pass
+
+    else:
+        return [
+            "external/" + import_,
+        ]
 
 def _imports(target):
     if RulesPythonPyInfo in target:
@@ -31,8 +47,14 @@ def _imports(target):
     else:
         return []
 
-def _extract_imports(target):
-    return [_extract_import_dir(i) for i in _imports(target)]
+def _extract_imports(bin_dir, target):
+    acc = []
+    for i in _imports(target):
+        it = _extract_import_dirs(bin_dir, i)
+        if it != None:
+            acc.extend(it)
+
+    return acc
 
 def _opt_out(opt_out_tags, rule_tags):
     "Returns true iff at least one opt_out_tag appears in rule_tags."
@@ -56,6 +78,9 @@ def _opt_in(opt_in_tags, rule_tags):
 
     return False
 
+def yml_list(items):
+    return "\n".join(["- " + str(it) for it in items])
+
 def _mypy_impl(target, ctx):
     # skip non-root targets
     if target.label.workspace_root != "":
@@ -76,16 +101,9 @@ def _mypy_impl(target, ctx):
     if not hasattr(ctx.rule.files, "srcs"):
         return []
 
-    # we need to help mypy map the location of external deps by setting
-    # MYPYPATH to include the site-packages directories.
-    external_deps = {}
-
     # we need to help mypy map the location of first party deps with custom
     # 'imports' by setting MYPYPATH.
     imports_dirs = {}
-
-    # generated dirs
-    generated_dirs = {}
 
     upstream_caches = []
 
@@ -93,58 +111,59 @@ def _mypy_impl(target, ctx):
 
     depsets = []
 
+    # Since we can't pass a {label: label} mapping as Bazel attr to the aspect
+    # config, it gets passed as a list of keys and a list of vals which we have
+    # to rezip into a mapping. Which is this.
+    #
+    # Reconstructs a mapping of requirements to at most one type provider for
+    # that requirement.
     type_mapping = dict(zip([k.label for k in ctx.attr._types_keys], ctx.attr._types_values))
-    dep_with_stubs = [_.label.workspace_root + "/site-packages" for _ in ctx.attr._types_keys]
+
+    # Look up type providers for the deps of this rule.
     additional_types = [
         type_mapping[dep.label]
         for dep in ctx.rule.attr.deps
         if dep.label in type_mapping
     ]
 
-    for import_ in _extract_imports(target):
+    # FIXME: Can we consolidate this into the dep loop?
+    for import_ in _extract_imports(ctx.bin_dir.path, target):
         imports_dirs[import_] = 1
 
     pyi_files = []
     pyi_dirs = {}
+
     for dep in (ctx.rule.attr.deps + additional_types):
         if RulesPythonPyInfo in dep and hasattr(dep[RulesPythonPyInfo], "direct_pyi_files"):
             pyi_files.extend(dep[RulesPythonPyInfo].direct_pyi_files.to_list())
-            pyi_dirs |= {"%s/%s" % (ctx.bin_dir.path, imp): None for imp in _extract_imports(dep) if imp != "site-packages" and imp != "_main"}
+            # pyi_dirs |= {"%s/%s" % (ctx.bin_dir.path, imp): None for imp in _extract_imports(dep) if imp != "site-packages" and imp != "_main"}
+
         depsets.append(dep.default_runfiles.files)
+
         if PyTypeLibraryInfo in dep:
             types.append(dep[PyTypeLibraryInfo].directory.path + "/site-packages")
-        elif dep.label in type_mapping:
-            continue
-        elif dep.label.workspace_root.startswith("external/"):
-            # TODO: do we need this, still?
-            external_deps[dep.label.workspace_root + "/site-packages"] = 1
-            for imp in [_ for _ in _imports(dep) if "mypy_extensions" not in _ and "typing_extensions" not in _]:
-                path = "external/{}".format(imp)
-                if path not in dep_with_stubs:
-                    external_deps[path] = 1
-        elif dep.label.workspace_name == "":
-            for import_ in _extract_imports(dep):
+
+        elif dep.label.workspace_name in ["_main", ""]:
+            for import_ in _extract_imports(ctx.bin_dir.path, dep):
                 imports_dirs[import_] = 1
 
         if MypyCacheInfo in dep:
             upstream_caches.append(dep[MypyCacheInfo].directory)
 
-        for file in dep.default_runfiles.files.to_list():
-            if file.root.path:
-                generated_dirs[file.root.path] = 1
-
         # TODO: can we use `ctx.bin_dir.path` here to cover generated files
         # and as a way to skip iterating over depset contents to find generated
         # file roots?
 
-    generated_imports_dirs = []
-    for generated_dir in generated_dirs.keys():
-        for import_ in imports_dirs.keys():
-            generated_imports_dirs.append("{}/{}".format(generated_dir, import_))
+    mypy_path = ":".join(sorted(types) + sorted(pyi_dirs) + sorted(imports_dirs))
 
     # types need to appear first in the mypy path since the module directories
     # are the same and mypy resolves the first ones, first.
-    mypy_path = ":".join(sorted(types) + sorted(pyi_dirs) + sorted(external_deps) + sorted(imports_dirs) + sorted(generated_dirs) + sorted(generated_imports_dirs))
+    print("---\nname: {}\ntypes:\n{}\npyi_dirs:\n{}\nimports_dirs:\n{}\n".format(
+        target.label,
+        yml_list(sorted(types)),
+        yml_list(sorted(pyi_dirs)),
+        yml_list(sorted(imports_dirs)),
+    ))
 
     output_file = ctx.actions.declare_file(ctx.rule.attr.name + ".mypy_stdout")
 
@@ -192,6 +211,7 @@ def _mypy_impl(target, ctx):
         outputs = outputs,
         executable = ctx.executable._mypy_cli,
         arguments = [args],
+        # env = {"MYPYPATH": mypy_path} | ctx.configuration.default_shell_env | extra_env,
         env = {"MYPYPATH": mypy_path} | ctx.configuration.default_shell_env | extra_env,
     )
 
