@@ -78,7 +78,7 @@ def _opt_in(opt_in_tags, rule_tags):
 
     return False
 
-def yml_list(items):
+def _yml_list(items):
     return "\n".join(["- " + str(it) for it in items])
 
 def _mypy_impl(target, ctx):
@@ -154,16 +154,18 @@ def _mypy_impl(target, ctx):
         # and as a way to skip iterating over depset contents to find generated
         # file roots?
 
-    mypy_path = ":".join(sorted(types) + sorted(pyi_dirs) + sorted(imports_dirs))
-
     # types need to appear first in the mypy path since the module directories
     # are the same and mypy resolves the first ones, first.
-    print("---\nname: {}\ntypes:\n{}\npyi_dirs:\n{}\nimports_dirs:\n{}\n".format(
-        target.label,
-        yml_list(sorted(types)),
-        yml_list(sorted(pyi_dirs)),
-        yml_list(sorted(imports_dirs)),
-    ))
+
+    mypy_path = ":".join(sorted(types) + sorted(pyi_dirs) + sorted(imports_dirs))
+
+    if False: # FIXME: Debug condition
+        print("---\nname: {}\ntypes:\n{}\npyi_dirs:\n{}\nimports_dirs:\n{}\n".format(
+            target.label,
+            _yml_list(sorted(types)),
+            _yml_list(sorted(pyi_dirs)),
+            _yml_list(sorted(imports_dirs)),
+        ))
 
     output_file = ctx.actions.declare_file(ctx.rule.attr.name + ".mypy_stdout")
 
