@@ -23,17 +23,29 @@ def _extract_import_dirs(bin_dir, import_):
     # _main/path/to/package -> path/to/package
     if import_.startswith("_main/"):
         name = import_.split("/", 1)[-1]
+
+        # HACK: Since we're looking at an import path which could refer either
+        # to actual source files or to generated files (we can't tell which in
+        # this logic, and it could be both!) in the workspace-internal case we
+        # have to emit a bazel-bin tree path mirroring the source tree path so
+        # that generated files can be treated the same.
         return [
             name,
             bin_dir + "/" + name
         ]
 
-    # hack: Filter out typing_extensions and mypy_extensions which are
+    # HACK: Filter out typing_extensions and mypy_extensions which are
     # mypy-internal and are not allowed to occur explicitly on the path because
-    # they're vendored into mypy.
+    # they're vendored into mypy. MyPy will bark if these imports get shoved
+    # onto the MYPYPATH.
     elif "typing_extensions" in import_ or "mypy_extensions" in import_:
         pass
 
+    # Assume that external workspace imports cannot contain genfiles, which is
+    # at present a valid assumption.
+    #
+    # FIXME: Test how genfiles in an external workspace behave, make sure this
+    # supports such behavior. No current examples appear to cover it.
     else:
         return [
             "external/" + import_,
@@ -126,7 +138,11 @@ def _mypy_impl(target, ctx):
         if dep.label in type_mapping
     ]
 
-    # FIXME: Can we consolidate this into the dep loop?
+    # FIXME: Filter this against the source files of this rule. Since we're
+    # propagating MyPy caches between aspect generated action instances, we
+    # never care about and should never have transitive files present. Only
+    # direct sources should be present, and even then only `.py` and `.pyi`
+    # files need to be present on the final MYPYPATH.
     for import_ in _extract_imports(ctx.bin_dir.path, target):
         imports_dirs[import_] = 1
 
@@ -134,12 +150,20 @@ def _mypy_impl(target, ctx):
     pyi_dirs = {}
 
     for dep in (ctx.rule.attr.deps + additional_types):
+        # FIXME: .pyi files from deoendencies shouldn't need to be collected for
+        # use as imports since their type stubs are already registered in a
+        # typecheck output cache, and those caches are inputs. Should be able to
+        # remove this without effect.
         if RulesPythonPyInfo in dep and hasattr(dep[RulesPythonPyInfo], "direct_pyi_files"):
             pyi_files.extend(dep[RulesPythonPyInfo].direct_pyi_files.to_list())
             # pyi_dirs |= {"%s/%s" % (ctx.bin_dir.path, imp): None for imp in _extract_imports(dep) if imp != "site-packages" and imp != "_main"}
 
         depsets.append(dep.default_runfiles.files)
 
+        # FIXME: This is a hack to achieve an `imports=[]` like effect on the
+        # PyTypeLibraryInfo, which lacks such a feature. Should just move it
+        # there and make this part of normal info collection, if the type
+        # library relocation dance is required at all which it shouldn't be.
         if PyTypeLibraryInfo in dep:
             types.append(dep[PyTypeLibraryInfo].directory.path + "/site-packages")
 
