@@ -220,13 +220,14 @@ def _mypy_impl(target, ctx):
     return result_info
 
 def mypy(
-        mypy_cli = None,
-        mypy_ini = None,
-        types = None,
-        cache = True,
-        color = True,
-        suppression_tags = None,
-        opt_in_tags = None):
+    mypy_cli = None,
+    mypy_ini = None,
+    types = None,
+    cache = True,
+    color = True,
+    suppression_tags = None,
+    opt_in_tags = None,
+):
     """
     Create a mypy target inferring upstream caches from deps.
 
@@ -285,7 +286,13 @@ def mypy(
         } | additional_attrs,
     )
 
-def mypy_cli(name, deps = None, mypy_requirement = None, python_version = "3.12", tags = None):
+def mypy_cli(
+    name,
+    deps = None,
+    mypy_requirement = None,
+    python_version = "3.12",
+    tags = None,
+):
     """
     Produce a custom mypy executable for use with the mypy build rule.
 
