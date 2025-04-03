@@ -19,9 +19,37 @@ MypyCacheInfo = provider(
     },
 )
 
-def _extract_import_dir(import_):
+def _extract_import_dirs(bin_dir, import_):
     # _main/path/to/package -> path/to/package
-    return import_.split("/", 1)[-1]
+    if import_.startswith("_main/"):
+        name = import_.split("/", 1)[-1]
+
+        # HACK: Since we're looking at an import path which could refer either
+        # to actual source files or to generated files (we can't tell which in
+        # this logic, and it could be both!) in the workspace-internal case we
+        # have to emit a bazel-bin tree path mirroring the source tree path so
+        # that generated files can be treated the same.
+        return [
+            name,
+            bin_dir + "/" + name
+        ]
+
+    # HACK: Filter out typing_extensions and mypy_extensions which are
+    # mypy-internal and are not allowed to occur explicitly on the path because
+    # they're vendored into mypy. MyPy will bark if these imports get shoved
+    # onto the MYPYPATH.
+    elif "typing_extensions" in import_ or "mypy_extensions" in import_:
+        pass
+
+    # Assume that external workspace imports cannot contain genfiles, which is
+    # at present a valid assumption.
+    #
+    # FIXME: Test how genfiles in an external workspace behave, make sure this
+    # supports such behavior. No current examples appear to cover it.
+    else:
+        return [
+            "external/" + import_,
+        ]
 
 def _imports(target):
     if RulesPythonPyInfo in target:
@@ -31,8 +59,14 @@ def _imports(target):
     else:
         return []
 
-def _extract_imports(target):
-    return [_extract_import_dir(i) for i in _imports(target)]
+def _extract_imports(bin_dir, target):
+    acc = []
+    for i in _imports(target):
+        it = _extract_import_dirs(bin_dir, i)
+        if it != None:
+            acc.extend(it)
+
+    return acc
 
 def _opt_out(opt_out_tags, rule_tags):
     "Returns true iff at least one opt_out_tag appears in rule_tags."
@@ -56,6 +90,9 @@ def _opt_in(opt_in_tags, rule_tags):
 
     return False
 
+def _yml_list(items):
+    return "\n".join(["- " + str(it) for it in items])
+
 def _mypy_impl(target, ctx):
     # skip non-root targets
     if target.label.workspace_root != "":
@@ -76,16 +113,9 @@ def _mypy_impl(target, ctx):
     if not hasattr(ctx.rule.files, "srcs"):
         return []
 
-    # we need to help mypy map the location of external deps by setting
-    # MYPYPATH to include the site-packages directories.
-    external_deps = {}
-
     # we need to help mypy map the location of first party deps with custom
     # 'imports' by setting MYPYPATH.
     imports_dirs = {}
-
-    # generated dirs
-    generated_dirs = {}
 
     upstream_caches = []
 
@@ -93,58 +123,73 @@ def _mypy_impl(target, ctx):
 
     depsets = []
 
+    # Since we can't pass a {label: label} mapping as Bazel attr to the aspect
+    # config, it gets passed as a list of keys and a list of vals which we have
+    # to rezip into a mapping. Which is this.
+    #
+    # Reconstructs a mapping of requirements to at most one type provider for
+    # that requirement.
     type_mapping = dict(zip([k.label for k in ctx.attr._types_keys], ctx.attr._types_values))
-    dep_with_stubs = [_.label.workspace_root + "/site-packages" for _ in ctx.attr._types_keys]
+
+    # Look up type providers for the deps of this rule.
     additional_types = [
         type_mapping[dep.label]
         for dep in ctx.rule.attr.deps
         if dep.label in type_mapping
     ]
 
-    for import_ in _extract_imports(target):
+    # FIXME: Filter this against the source files of this rule. Since we're
+    # propagating MyPy caches between aspect generated action instances, we
+    # never care about and should never have transitive files present. Only
+    # direct sources should be present, and even then only `.py` and `.pyi`
+    # files need to be present on the final MYPYPATH.
+    for import_ in _extract_imports(ctx.bin_dir.path, target):
         imports_dirs[import_] = 1
 
     pyi_files = []
     pyi_dirs = {}
+
     for dep in (ctx.rule.attr.deps + additional_types):
+        # FIXME: .pyi files from deoendencies shouldn't need to be collected for
+        # use as imports since their type stubs are already registered in a
+        # typecheck output cache, and those caches are inputs. Should be able to
+        # remove this without effect.
         if RulesPythonPyInfo in dep and hasattr(dep[RulesPythonPyInfo], "direct_pyi_files"):
             pyi_files.extend(dep[RulesPythonPyInfo].direct_pyi_files.to_list())
-            pyi_dirs |= {"%s/%s" % (ctx.bin_dir.path, imp): None for imp in _extract_imports(dep) if imp != "site-packages" and imp != "_main"}
+            # pyi_dirs |= {"%s/%s" % (ctx.bin_dir.path, imp): None for imp in _extract_imports(dep) if imp != "site-packages" and imp != "_main"}
+
         depsets.append(dep.default_runfiles.files)
+
+        # FIXME: This is a hack to achieve an `imports=[]` like effect on the
+        # PyTypeLibraryInfo, which lacks such a feature. Should just move it
+        # there and make this part of normal info collection, if the type
+        # library relocation dance is required at all which it shouldn't be.
         if PyTypeLibraryInfo in dep:
             types.append(dep[PyTypeLibraryInfo].directory.path + "/site-packages")
-        elif dep.label in type_mapping:
-            continue
-        elif dep.label.workspace_root.startswith("external/"):
-            # TODO: do we need this, still?
-            external_deps[dep.label.workspace_root + "/site-packages"] = 1
-            for imp in [_ for _ in _imports(dep) if "mypy_extensions" not in _ and "typing_extensions" not in _]:
-                path = "external/{}".format(imp)
-                if path not in dep_with_stubs:
-                    external_deps[path] = 1
-        elif dep.label.workspace_name == "":
-            for import_ in _extract_imports(dep):
+
+        elif dep.label.workspace_name in ["_main", ""]:
+            for import_ in _extract_imports(ctx.bin_dir.path, dep):
                 imports_dirs[import_] = 1
 
         if MypyCacheInfo in dep:
             upstream_caches.append(dep[MypyCacheInfo].directory)
 
-        for file in dep.default_runfiles.files.to_list():
-            if file.root.path:
-                generated_dirs[file.root.path] = 1
-
         # TODO: can we use `ctx.bin_dir.path` here to cover generated files
         # and as a way to skip iterating over depset contents to find generated
         # file roots?
 
-    generated_imports_dirs = []
-    for generated_dir in generated_dirs.keys():
-        for import_ in imports_dirs.keys():
-            generated_imports_dirs.append("{}/{}".format(generated_dir, import_))
-
     # types need to appear first in the mypy path since the module directories
     # are the same and mypy resolves the first ones, first.
-    mypy_path = ":".join(sorted(types) + sorted(pyi_dirs) + sorted(external_deps) + sorted(imports_dirs) + sorted(generated_dirs) + sorted(generated_imports_dirs))
+
+    mypy_path = ":".join(sorted(types) + sorted(pyi_dirs) + sorted(imports_dirs))
+
+    if False: # FIXME: Debug condition
+        print("---\nname: {}\ntypes:\n{}\npyi_dirs:\n{}\nimports_dirs:\n{}\n".format(
+            target.label,
+            _yml_list(sorted(types)),
+            _yml_list(sorted(pyi_dirs)),
+            _yml_list(sorted(imports_dirs)),
+        ))
 
     output_file = ctx.actions.declare_file(ctx.rule.attr.name + ".mypy_stdout")
 
@@ -192,19 +237,21 @@ def _mypy_impl(target, ctx):
         outputs = outputs,
         executable = ctx.executable._mypy_cli,
         arguments = [args],
+        # env = {"MYPYPATH": mypy_path} | ctx.configuration.default_shell_env | extra_env,
         env = {"MYPYPATH": mypy_path} | ctx.configuration.default_shell_env | extra_env,
     )
 
     return result_info
 
 def mypy(
-        mypy_cli = None,
-        mypy_ini = None,
-        types = None,
-        cache = True,
-        color = True,
-        suppression_tags = None,
-        opt_in_tags = None):
+    mypy_cli = None,
+    mypy_ini = None,
+    types = None,
+    cache = True,
+    color = True,
+    suppression_tags = None,
+    opt_in_tags = None,
+):
     """
     Create a mypy target inferring upstream caches from deps.
 
@@ -263,7 +310,13 @@ def mypy(
         } | additional_attrs,
     )
 
-def mypy_cli(name, deps = None, mypy_requirement = None, python_version = "3.12", tags = None):
+def mypy_cli(
+    name,
+    deps = None,
+    mypy_requirement = None,
+    python_version = "3.12",
+    tags = None,
+):
     """
     Produce a custom mypy executable for use with the mypy build rule.
 
