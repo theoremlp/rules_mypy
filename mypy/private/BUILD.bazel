@@ -6,7 +6,7 @@ load("@rules_uv//uv:venv.bzl", "create_venv")
 load(":mypy.bzl", "mypy_cli")
 
 exports_files([
-    "mypy.py",
+    "mypy_runner.py",
     "default_mypy.ini",
 ])
 
