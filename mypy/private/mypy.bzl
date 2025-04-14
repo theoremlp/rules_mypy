@@ -284,8 +284,8 @@ def mypy_cli(name, deps = None, mypy_requirement = None, python_version = "3.12"
 
     py_binary(
         name = name,
-        srcs = ["@rules_mypy//mypy/private:mypy.py"],
-        main = "@rules_mypy//mypy/private:mypy.py",
+        srcs = ["@rules_mypy//mypy/private:mypy_runner.py"],
+        main = "@rules_mypy//mypy/private:mypy_runner.py",
         visibility = ["//visibility:public"],
         deps = [mypy_requirement] + deps,
         python_version = python_version,
