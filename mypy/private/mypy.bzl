@@ -151,18 +151,15 @@ def _mypy_impl(target, ctx):
     args = ctx.actions.args()
     args.add("--output", output_file)
 
+    result_info = [OutputGroupInfo(mypy = depset([output_file]))]
     if ctx.attr.cache:
         cache_directory = ctx.actions.declare_directory(ctx.rule.attr.name + ".mypy_cache")
         args.add("--cache-dir", cache_directory.path)
 
         outputs = [output_file, cache_directory]
-        result_info = [
-            MypyCacheInfo(directory = cache_directory),
-            OutputGroupInfo(mypy = depset(outputs)),
-        ]
+        result_info.append([MypyCacheInfo(directory = cache_directory)])
     else:
         outputs = [output_file]
-        result_info = [OutputGroupInfo(mypy = depset(outputs))]
 
     args.add_all([c.path for c in upstream_caches], before_each = "--upstream-cache")
     args.add_all([s for s in ctx.rule.files.srcs if "/_virtual_imports/" not in s.short_path])
