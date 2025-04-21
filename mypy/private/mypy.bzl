@@ -157,7 +157,7 @@ def _mypy_impl(target, ctx):
         args.add("--cache-dir", cache_directory.path)
 
         outputs = [output_file, cache_directory]
-        result_info.append([MypyCacheInfo(directory = cache_directory)])
+        result_info.append(MypyCacheInfo(directory = cache_directory))
     else:
         outputs = [output_file]
 
