@@ -14,12 +14,6 @@ bzl_library(
     visibility = ["//mypy:__subpackages__"],
 )
 
-bzl_library(
-    name = "types_rules",
-    srcs = ["types.bzl"],
-    visibility = ["//mypy:__subpackages__"],
-)
-
 pip_compile(
     name = "generate_requirements_lock",
     requirements_in = "requirements.in",
