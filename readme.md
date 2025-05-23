@@ -105,6 +105,8 @@ stubs = load_stubs(
 )
 ```
 
+If any stubs libraries has dependencies (e.g. `types-boto3`), you will need to use the first approach and explicitly add it to the list of dependencies.
+
 ## Customizing mypy
 
 ### Configuring mypy with mypy.ini
