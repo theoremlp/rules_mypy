@@ -98,9 +98,6 @@ def _get_mypy_env(ctx, all_deps):
     for dep, dep_type in all_deps:
         if dep_type == DEP_TYPE_OVERRIDDEN:
             continue
-        elif dep_type == DEP_TYPE_STUB:
-            python_path.append(dep.label.workspace_root + "/site-packages")
-            continue
 
         for imp in _get_py_imports(dep):
             imp_main = _get_main_relpath(imp)
@@ -111,7 +108,7 @@ def _get_mypy_env(ctx, all_deps):
                 mypy_path.append("{}/{}".format(ctx.bin_dir.path, imp_main))
             else:
                 # external dependencies
-                mypy_path.append("external/{}".format(imp))
+                python_path.append("external/{}".format(imp))
 
     return {
         "PYTHONPATH": _to_search_path(python_path),
