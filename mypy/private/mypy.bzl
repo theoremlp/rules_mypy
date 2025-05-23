@@ -76,10 +76,6 @@ def _get_mypy_env(ctx, all_deps):
         mypy_path.append("{}/{}".format(ctx.label.package, imp.removeprefix("_main/")))
 
     for dep in all_deps:
-        if dep in ctx.attr._stubs_values:
-            python_path.append("external/{}".format(imp))
-            continue
-
         for imp in _get_py_imports(dep):
             if imp.startswith("_main/"):
                 # source python files
@@ -88,7 +84,7 @@ def _get_mypy_env(ctx, all_deps):
                 mypy_path.append("{}/{}".format(ctx.bin_dir.path, imp.removeprefix("_main/")))
             else:
                 # external dependencies
-                mypy_path.append("external/{}".format(imp))
+                python_path.append("external/{}".format(imp))
 
     return {
         "PYTHONPATH": _to_search_path(python_path),
