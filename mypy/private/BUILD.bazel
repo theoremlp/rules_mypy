@@ -1,6 +1,4 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load("@rules_mypy_pip//:requirements.bzl", "requirement")
-load("@rules_python//python:py_binary.bzl", "py_binary")
 load("@rules_uv//uv:pip.bzl", "pip_compile")
 load("@rules_uv//uv:venv.bzl", "create_venv")
 load(":mypy.bzl", "mypy_cli")
@@ -13,12 +11,6 @@ exports_files([
 bzl_library(
     name = "mypy_rules",
     srcs = ["mypy.bzl"],
-    visibility = ["//mypy:__subpackages__"],
-)
-
-bzl_library(
-    name = "py_type_library_rules",
-    srcs = ["py_type_library.bzl"],
     visibility = ["//mypy:__subpackages__"],
 )
 
@@ -40,14 +32,3 @@ create_venv(
 )
 
 mypy_cli(name = "mypy")
-
-py_binary(
-    name = "py_type_library",
-    srcs = ["py_type_library.py"],
-    main = "py_type_library.py",
-    python_version = "3.12",
-    visibility = ["//visibility:public"],
-    deps = [
-        requirement("click"),
-    ],
-)
