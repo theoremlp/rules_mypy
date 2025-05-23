@@ -10,7 +10,6 @@ directories.
 load("@rules_mypy_pip//:requirements.bzl", "requirement")
 load("@rules_python//python:py_binary.bzl", "py_binary")
 load("@rules_python//python:py_info.bzl", RulesPythonPyInfo = "PyInfo")
-load(":py_type_library.bzl", "PyTypeLibraryInfo")
 
 MypyCacheInfo = provider(
     doc = "Output details of the mypy build rule.",
@@ -106,7 +105,7 @@ def _mypy_impl(target, ctx):
 
     upstream_caches = []
 
-    types = []
+    stubs_deps = []
 
     depsets = []
 
@@ -128,8 +127,8 @@ def _mypy_impl(target, ctx):
             pyi_files.extend(dep[RulesPythonPyInfo].direct_pyi_files.to_list())
             pyi_dirs |= {"%s/%s" % (ctx.bin_dir.path, imp): None for imp in _extract_imports(dep) if imp != "site-packages" and imp != "_main"}
         depsets.append(dep.default_runfiles.files)
-        if PyTypeLibraryInfo in dep:
-            types.append(dep[PyTypeLibraryInfo].directory.path + "/site-packages")
+        if dep in type_mapping.values() and dep.label.workspace_name != "":
+            stubs_deps.append(dep.label.workspace_root + "/site-packages")
         elif dep.label in type_mapping:
             continue
         elif dep.label.workspace_root.startswith("external/"):
@@ -169,9 +168,6 @@ def _mypy_impl(target, ctx):
         # output bin_dir from `generated_dirs` first
         # https://github.com/theoremlp/rules_mypy/issues/88
         ["."] +
-        # types need to appear first in the mypy path since the module directories
-        # are the same and mypy resolves the first ones, first.
-        sorted(types) +
         sorted(external_deps) +
         sorted(imports_dirs) +
         sorted(generated_dirs) +
@@ -224,7 +220,7 @@ def _mypy_impl(target, ctx):
         outputs = outputs,
         executable = ctx.executable._mypy_cli,
         arguments = [args],
-        env = {"MYPYPATH": mypy_path} | ctx.configuration.default_shell_env | extra_env,
+        env = {"MYPYPATH": mypy_path, "PYTHONPATH": ":".join(sorted(stubs_deps))} | ctx.configuration.default_shell_env | extra_env,
     )
 
     return result_info
