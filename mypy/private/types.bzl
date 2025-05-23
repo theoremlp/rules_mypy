@@ -1,26 +1,5 @@
 "Repository rule to generate `py_type_library` from input typings/stubs requirements."
 
-_PY_TYPE_LIBRARY_TEMPLATE = """
-py_type_library(
-    name = "{requirement}",
-    typing = requirement("{requirement}"),
-    visibility = ["//visibility:public"],
-)
-"""
-
-def _render_build(rctx, types):
-    content = ""
-    content += """load("{pip_requirements}", "requirement")\n""".format(
-        pip_requirements = rctx.attr.pip_requirements,
-    )
-    content += """load("@rules_mypy//mypy:py_type_library.bzl", "py_type_library")\n"""
-    for requirement in types:
-        content += _PY_TYPE_LIBRARY_TEMPLATE.format(
-            requirement = requirement,
-            raw = requirement.removeprefix("types-").removesuffix("-stubs"),
-        ) + "\n"
-    return content
-
 def _render_types_bzl(rctx, types):
     content = ""
     content += """load("{pip_requirements}", "requirement")\n""".format(
@@ -28,7 +7,7 @@ def _render_types_bzl(rctx, types):
     )
     content += "types = {\n"
     for requirement in types:
-        content += """    requirement("{raw}"): "@@{name}//:{requirement}",\n""".format(
+        content += """    requirement("{raw}"): requirement("{requirement}"),\n""".format(
             raw = requirement.removeprefix("types-").removesuffix("-stubs"),
             name = str(rctx.attr.name),
             requirement = requirement,
@@ -65,7 +44,7 @@ def _generate_impl(rctx):
         if req.endswith("-stubs") or req.startswith("types-"):
             types.append(req)
 
-    rctx.file("BUILD.bazel", content = _render_build(rctx, types))
+    rctx.file("BUILD.bazel", content = "")
     rctx.file("types.bzl", content = _render_types_bzl(rctx, types))
 
 generate = repository_rule(
