@@ -5,6 +5,7 @@ py_binary(
     deps = [
         "//absolute_paths/lib:foo",
         "//absolute_paths/gen:bar",
+        "//absolute_paths/nested",
     ],
     visibility = ["//visibility:public"],
 )
