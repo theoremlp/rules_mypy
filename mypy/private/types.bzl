@@ -59,6 +59,9 @@ def _generate_impl(rctx):
             continue
 
         req = req.strip()
+        if req in rctx.attr.exclude_requirements:
+            continue
+
         if req.endswith("-stubs") or req.startswith("types-"):
             types.append(req)
 
@@ -70,5 +73,6 @@ generate = repository_rule(
     attrs = {
         "pip_requirements": attr.label(),
         "requirements_txt": attr.label(allow_single_file = True),
+        "exclude_requirements": attr.string_list(default = []),
     },
 )
