@@ -1,0 +1,11 @@
+py_binary(
+    name = "main",
+    srcs = ["main.py"],
+    main = "main.py",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//absolute_paths/gen:bar",
+        "//absolute_paths/lib:foo",
+        "//absolute_paths/nested",
+    ],
+)
