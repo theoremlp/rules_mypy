@@ -127,10 +127,15 @@ def _mypy_impl(target, ctx):
             pyi_files.extend(dep[RulesPythonPyInfo].direct_pyi_files.to_list())
             pyi_dirs |= {"%s/%s" % (ctx.bin_dir.path, imp): None for imp in _extract_imports(dep) if imp != "site-packages" and imp != "_main"}
         depsets.append(dep.default_runfiles.files)
-        if dep in type_mapping.values() and dep.label.workspace_name != "":
-            stubs_deps.append(dep.label.workspace_root + "/site-packages")
-        elif dep.label in type_mapping:
+
+        if dep.label in type_mapping:
             continue
+
+        if dep.label.workspace_name == "":
+            for import_ in _extract_imports(dep):
+                imports_dirs[import_] = 1
+        elif dep in type_mapping.values():
+            stubs_deps.append(dep.label.workspace_root + "/site-packages")
         elif dep.label.workspace_root.startswith("external/"):
             # TODO: do we need this, still?
             external_deps[dep.label.workspace_root + "/site-packages"] = 1
@@ -138,9 +143,6 @@ def _mypy_impl(target, ctx):
                 path = "external/{}".format(imp)
                 if path not in dep_with_stubs:
                     external_deps[path] = 1
-        elif dep.label.workspace_name == "":
-            for import_ in _extract_imports(dep):
-                imports_dirs[import_] = 1
 
         if MypyCacheInfo in dep:
             upstream_caches.append(dep[MypyCacheInfo].directory)
