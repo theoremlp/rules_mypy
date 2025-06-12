@@ -20,8 +20,13 @@ MypyCacheInfo = provider(
 )
 
 def _extract_import_dir(import_):
-    # _main/path/to/package -> path/to/package
-    return import_.split("/", 1)[-1]
+    # Remove first parent from the directory
+    if "/" in import_:
+        # "_main/path/to/package" -> "path/to/package"
+        return import_.split("/", 1)[-1]
+    else:
+        # "_main" -> ""
+        return ""
 
 def _imports(target):
     if RulesPythonPyInfo in target:
