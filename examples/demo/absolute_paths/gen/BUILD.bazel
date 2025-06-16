@@ -1,0 +1,11 @@
+genrule(
+    name = "generate_source",
+    outs = ["bar.py"],
+    cmd = "echo 'BAR = 0' > $(OUTS)",
+)
+
+py_library(
+    name = "bar",
+    srcs = ["bar.py"],
+    visibility = ["//visibility:public"],
+)

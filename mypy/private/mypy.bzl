@@ -147,9 +147,21 @@ def _mypy_impl(target, ctx):
         for import_ in imports_dirs.keys():
             generated_imports_dirs.append("{}/{}".format(generated_dir, import_))
 
-    # types need to appear first in the mypy path since the module directories
-    # are the same and mypy resolves the first ones, first.
-    mypy_path = ":".join(sorted(types) + sorted(external_deps) + sorted(imports_dirs) + sorted(generated_dirs) + sorted(generated_imports_dirs) + sorted(pyi_dirs))
+    mypy_path = ":".join(
+        # normally, mypy looks in the current directory last, but we explicitly want
+        # to check the current directory first, to avoid issues where mypy finds the
+        # output bin_dir from `generated_dirs` first
+        # https://github.com/theoremlp/rules_mypy/issues/88
+        ["."] +
+        # types need to appear first in the mypy path since the module directories
+        # are the same and mypy resolves the first ones, first.
+        sorted(types) +
+        sorted(external_deps) +
+        sorted(imports_dirs) +
+        sorted(generated_dirs) +
+        sorted(generated_imports_dirs) +
+        sorted(pyi_dirs),
+    )
 
     output_file = ctx.actions.declare_file(ctx.rule.attr.name + ".mypy_stdout")
 
