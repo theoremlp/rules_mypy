@@ -1,0 +1,6 @@
+load(":foo.bzl", "foo")
+
+foo(
+    name = "foo",
+    srcs = ["foo.txt"],
+)
