@@ -39,6 +39,9 @@ def _imports(target):
 def _extract_imports(target):
     return [_extract_import_dir(i) for i in _imports(target)]
 
+def _should_ignore_import(imp):
+    return "typing-extensions" in imp or "mypy-extensions" in imp or "typing_extensions" in imp or "mypy_extensions" in imp
+
 def _opt_out(opt_out_tags, rule_tags):
     "Returns true iff at least one opt_out_tag appears in rule_tags."
     if len(opt_out_tags) == 0:
@@ -123,7 +126,7 @@ def _mypy_impl(target, ctx):
         elif dep.label.workspace_root.startswith("external/"):
             # TODO: do we need this, still?
             external_deps[dep.label.workspace_root + "/site-packages"] = 1
-            for imp in [_ for _ in _imports(dep) if "mypy_extensions" not in _ and "typing_extensions" not in _]:
+            for imp in _imports(dep):
                 path = "external/{}".format(imp)
                 if path not in dep_with_stubs:
                     external_deps[path] = 1
@@ -135,8 +138,12 @@ def _mypy_impl(target, ctx):
             upstream_caches.append(dep[MypyCacheInfo].directory)
 
         for file in dep.default_runfiles.files.to_list():
-            if file.root.path:
-                generated_dirs[file.root.path] = 1
+            root = file.root.path
+            if root:
+                if dep.label.workspace_root.startswith("external/"):
+                    generated_dirs[root + "/" + dep.label.workspace_root] = 1
+                else:
+                    generated_dirs[root] = 1
 
         # TODO: can we use `ctx.bin_dir.path` here to cover generated files
         # and as a way to skip iterating over depset contents to find generated
@@ -147,7 +154,7 @@ def _mypy_impl(target, ctx):
         for import_ in imports_dirs.keys():
             generated_imports_dirs.append("{}/{}".format(generated_dir, import_))
 
-    mypy_path = ":".join(
+    path_components = (
         # normally, mypy looks in the current directory last, but we explicitly want
         # to check the current directory first, to avoid issues where mypy finds the
         # output bin_dir from `generated_dirs` first
@@ -160,8 +167,10 @@ def _mypy_impl(target, ctx):
         sorted(imports_dirs) +
         sorted(generated_dirs) +
         sorted(generated_imports_dirs) +
-        sorted(pyi_dirs),
+        sorted(pyi_dirs)
     )
+
+    mypy_path = ":".join([x for x in path_components if not _should_ignore_import(x)])
 
     output_file = ctx.actions.declare_file(ctx.rule.attr.name + ".mypy_stdout")
 
