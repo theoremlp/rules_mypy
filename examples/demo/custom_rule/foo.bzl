@@ -1,3 +1,5 @@
+"""A custom rule that exposes PyInfo"""
+
 load("@rules_python//python:py_info.bzl", "PyInfo")
 
 def _impl(ctx):
