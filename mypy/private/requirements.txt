@@ -2,14 +2,6 @@
 #    bazel run @@//mypy/private:generate_requirements_lock
 --index-url https://pypi.org/simple
 
-click==8.2.1 \
-    --hash=sha256:27c491cc05d968d271d5a1db13e3b5a184636d9d930f148c50b038f0d0646202 \
-    --hash=sha256:61a3265b914e850b85317d0b3109c7f8cd35a670f963866005d6ef1d5175a12b
-    # via -r mypy/private/requirements.in
-colorama==0.4.6 \
-    --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
-    --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
-    # via -r mypy/private/requirements.in
 mypy==1.16.1 \
     --hash=sha256:051e1677689c9d9578b9c7f4d206d763f9bbd95723cd1416fad50db49d52f359 \
     --hash=sha256:08e850ea22adc4d8a4014651575567b0318ede51e8e9fe7a68f25391af699507 \
