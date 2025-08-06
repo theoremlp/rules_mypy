@@ -39,7 +39,13 @@ def _extract_imports(target):
     return [_extract_import_dir(i) for i in _imports(target)]
 
 def _should_ignore_import(imp):
-    return "typing-extensions" in imp or "mypy-extensions" in imp or "typing_extensions" in imp or "mypy_extensions" in imp
+    ignores = [
+        "typing-extensions",
+        "mypy-extensions",
+        "typing_extensions",
+        "mypy_extensions",
+    ]
+    return any([s in imp for s in ignores])
 
 def _opt_out(opt_out_tags, rule_tags):
     "Returns true iff at least one opt_out_tag appears in rule_tags."
