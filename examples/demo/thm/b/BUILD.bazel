@@ -12,3 +12,11 @@ py_library(
         requirement("numpy"),
     ],
 )
+
+# test external dependency in a transitive dependency
+py_library(
+    name = "b2",
+    srcs = ["b2.py"],
+    visibility = ["//visibility:public"],
+    deps = ["b"],
+)
