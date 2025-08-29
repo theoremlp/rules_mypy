@@ -179,7 +179,7 @@ def _mypy_impl(target, ctx):
         sorted(pyi_dirs)
     )
 
-    mypy_path = ":".join([x for x in path_components if not _should_ignore_import(x)])
+    mypy_path = ctx.configuration.host_path_separator.join([x for x in path_components if not _should_ignore_import(x)])
 
     output_file = ctx.actions.declare_file(ctx.rule.attr.name + ".mypy_stdout")
 
